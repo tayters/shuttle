@@ -9,6 +9,8 @@
 /home/pi/workspace/shuttle/Tracking/Threshold/ThresholdTrack.cpp
 stdio.h
 -
+time.h
+-
 iostream
 -
 opencv2/opencv.hpp

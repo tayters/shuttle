@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <time.h>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
@@ -14,6 +15,12 @@ int main(int argc, char** argv)
     Rect arena;
     Point arena_centre;
     Mat frame, thr, gray, src, src_crop;
+    time_t rawtime;
+
+    struct tm * timeinfo;
+    time(&rawtime);
+    timeinfo = localtime(&rawtime);
+    printf ( "The current date/time is: %s", asctime (timeinfo) );
 
     //Hilook IPcamera (substream /102)
     string vidAddress = "rtsp://admin:Snapper1@192.168.137.100:554/Streaming/Channels/101";
@@ -56,6 +63,13 @@ int main(int argc, char** argv)
         putText(src,"x:"+to_string(p.x)+" y:"+to_string(p.y),
                 Point(1000, 600), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
                 1, 1);
+
+        time(&rawtime);
+        timeinfo = localtime(&rawtime);
+
+
+        putText(src, asctime (timeinfo), Point(800, 650), FONT_HERSHEY_SIMPLEX,
+                1, Scalar(0, 200, 130), 1, 1);
 
 
         // show image with the tracked object
