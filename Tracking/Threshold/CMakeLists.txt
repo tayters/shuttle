@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 2.8)
+project( ThresholdTrack )
+find_package( OpenCV REQUIRED )
+include_directories( ${OpenCV_INCLUDE_DIRS} )
+add_executable( ThresholdTrack ThresholdTrack.cpp )
+target_link_libraries( ThresholdTrack ${OpenCV_LIBS} )
