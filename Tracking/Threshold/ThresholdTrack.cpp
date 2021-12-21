@@ -20,7 +20,7 @@ int main(int argc, char** argv)
     struct tm * timeinfo;
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    printf ( "The current date/time is: %s", asctime (timeinfo) );
+    printf ( "The current ddate/time is: %s", asctime (timeinfo) );
 
     //Hilook IPcamera (substream /102)
     string vidAddress = "rtsp://admin:Snapper1@192.168.137.100:554/Streaming/Channels/101";

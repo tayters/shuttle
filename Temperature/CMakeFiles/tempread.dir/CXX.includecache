@@ -1,0 +1,18 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/workspace/shuttle/Temperature/tempread.cpp
+iostream
+-
+Ezo_i2c.h
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c.h
+
+Ezo_I2c_lib/Ezo_i2c.h
+wiringPiI2C.h
+-
+
