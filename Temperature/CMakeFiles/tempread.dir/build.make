@@ -79,6 +79,7 @@ tempread_EXTERNAL_OBJECTS =
 
 tempread: CMakeFiles/tempread.dir/tempread.cpp.o
 tempread: CMakeFiles/tempread.dir/build.make
+tempread: Ezo_i2c_lib/libEzo_i2c_lib.a
 tempread: CMakeFiles/tempread.dir/link.txt
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/pi/workspace/shuttle/Temperature/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Linking CXX executable tempread"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/tempread.dir/link.txt --verbose=$(VERBOSE)

@@ -6,5 +6,5 @@ CXX_FLAGS =
 
 CXX_DEFINES = 
 
-CXX_INCLUDES = -I/home/pi/workspace/shuttle/Temperature/Ezo_I2c_lib 
+CXX_INCLUDES = -I/home/pi/workspace/shuttle/Temperature -I/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib 
 

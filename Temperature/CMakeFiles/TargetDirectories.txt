@@ -1,3 +1,6 @@
 /home/pi/workspace/shuttle/Temperature/CMakeFiles/rebuild_cache.dir
 /home/pi/workspace/shuttle/Temperature/CMakeFiles/tempread.dir
 /home/pi/workspace/shuttle/Temperature/CMakeFiles/edit_cache.dir
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/CMakeFiles/rebuild_cache.dir
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/CMakeFiles/Ezo_i2c_lib.dir
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/CMakeFiles/edit_cache.dir

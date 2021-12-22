@@ -123,6 +123,19 @@ tempread/fast:
 	$(MAKE) -f CMakeFiles/tempread.dir/build.make CMakeFiles/tempread.dir/build
 .PHONY : tempread/fast
 
+#=============================================================================
+# Target rules for targets named Ezo_i2c_lib
+
+# Build rule for target.
+Ezo_i2c_lib: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 Ezo_i2c_lib
+.PHONY : Ezo_i2c_lib
+
+# fast build rule for target.
+Ezo_i2c_lib/fast:
+	$(MAKE) -f Ezo_i2c_lib/CMakeFiles/Ezo_i2c_lib.dir/build.make Ezo_i2c_lib/CMakeFiles/Ezo_i2c_lib.dir/build
+.PHONY : Ezo_i2c_lib/fast
+
 tempread.o: tempread.cpp.o
 
 .PHONY : tempread.o
@@ -159,6 +172,7 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... tempread"
 	@echo "... edit_cache"
+	@echo "... Ezo_i2c_lib"
 	@echo "... tempread.o"
 	@echo "... tempread.i"
 	@echo "... tempread.s"

@@ -1,0 +1,26 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/Ezo_i2c.cpp
+Ezo_i2c.h
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/Ezo_i2c.h
+wiringPi.h
+-
+stdlib.h
+-
+string.h
+-
+
+/home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/Ezo_i2c.h
+stdint.h
+-
+stdio.h
+-
+wiringPiI2C.h
+-
+
