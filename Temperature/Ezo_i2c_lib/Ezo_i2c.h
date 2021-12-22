@@ -93,6 +93,7 @@ class Ezo_board{
 
 	protected:
 	uint8_t i2c_address;
+	int fd;
 	const char* name = 0;
 	float reading = 0;
 	bool issued_read = false;

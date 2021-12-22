@@ -9,7 +9,7 @@
 /home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/Ezo_i2c.cpp
 Ezo_i2c.h
 /home/pi/workspace/shuttle/Temperature/Ezo_i2c_lib/Ezo_i2c.h
-wiringPi.h
+wiringPiI2C.h
 -
 stdlib.h
 -

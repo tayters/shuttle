@@ -1,41 +1,40 @@
-
 #include "Ezo_i2c.h"
-//#include "Arduino.h"
-//#include "Wire.h"
-#include <wiringPi.h>
+#include <wiringPiI2C.h>
 #include <stdlib.h>
 #include <string.h>
 
-Ezo_board::Ezo_board(uint8_t address){
+Ezo_board::Ezo_board(uint8_t address)
+{
 	this->i2c_address = address;
-
-	int wiringPiI2CSetup(int i2c_address) ;
+	this->fd = wiringPiI2CSetup(i2c_address) ;
 }
 
-Ezo_board::Ezo_board(uint8_t address, const char* name){
+Ezo_board::Ezo_board(uint8_t address, const char* name)
+{
 	this->i2c_address = address;
 	this->name = name;
-	int wiringPiI2CSetup(int i2c_address) ;
+	this->fd = wiringPiI2CSetup(i2c_address) ;
 }
 
-const char* Ezo_board::get_name(){
+const char* Ezo_board::get_name()
+{
 	return this->name;
 }
 
-uint8_t Ezo_board::get_address(){
+uint8_t Ezo_board::get_address()
+{
     return i2c_address;
 }
 
-void Ezo_board::send_cmd(const char* command) {
-  //Wire.beginTransmission(this->i2c_address);
-  //Wire.write(command);
-  //Wire.endTransmission();
-	wiringPiI2CWrite(this->i2c_address, (int)command) ;
-
+void Ezo_board::send_cmd(const char* command)
+{
+	wiringPiI2CWrite(this->fd, this->i2c_address) ;
+	
 	this->issued_read = false;
 }
 
-void Ezo_board::send_read_cmd(){
+void Ezo_board::send_read_cmd()
+{
 	send_cmd("r");
 	this->issued_read = true;
 }
@@ -54,8 +53,8 @@ void Ezo_board::send_read_with_temp_comp(float temperature){
 */
 
 
-enum Ezo_board::errors Ezo_board::receive_read_cmd(){
-
+enum Ezo_board::errors Ezo_board::receive_read_cmd()
+{
 	char _sensordata[this->bufferlen];
 	this->error = receive_cmd(_sensordata, bufferlen);
 
@@ -70,19 +69,23 @@ enum Ezo_board::errors Ezo_board::receive_read_cmd(){
 	return this->error;
 }
 
-bool Ezo_board::is_read_poll(){
+bool Ezo_board::is_read_poll()
+{
 	return this->issued_read;
 }
 
-float Ezo_board:: get_last_received_reading(){
+float Ezo_board:: get_last_received_reading()
+{
 	return this->reading;
 }
 
-enum Ezo_board::errors Ezo_board::get_error(){
+enum Ezo_board::errors Ezo_board::get_error()
+{
 	return this->error;
 }
 
-enum Ezo_board::errors Ezo_board::receive_cmd( char * sensordata_buffer, uint8_t buffer_len) {
+enum Ezo_board::errors Ezo_board::receive_cmd( char * sensordata_buffer, uint8_t buffer_len)
+ {
   unsigned char sensor_bytes_received = 0;
   unsigned char code = 0;
   unsigned char in_char = 0;
