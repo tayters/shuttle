@@ -12,7 +12,7 @@ add_executable(tempread tempread.cpp)
 
 find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 
-target_link_libraries(tempread PUBLIC Ezo_i2c_lib wiringPi)
+target_link_libraries(tempread PUBLIC Ezo_i2c_lib  wiringPi i2c)
 
 target_include_directories(tempread PUBLIC
                           "${PROJECT_BINARY_DIR}"

@@ -1,1 +1,1 @@
-/usr/bin/c++     CMakeFiles/tempread.dir/tempread.cpp.o  -o tempread  Ezo_i2c_lib/libEzo_i2c_lib.a -lwiringPi 
+/usr/bin/c++     CMakeFiles/tempread.dir/tempread.cpp.o  -o tempread  Ezo_i2c_lib/libEzo_i2c_lib.a -lwiringPi -li2c 
