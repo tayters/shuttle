@@ -21,8 +21,6 @@ stdlib.h
 -
 stdint.h
 -
-errno.h
--
 string.h
 -
 fcntl.h
