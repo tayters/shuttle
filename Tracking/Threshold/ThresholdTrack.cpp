@@ -23,13 +23,19 @@ int main(int argc, char** argv)
     printf ( "The current ddate/time is: %s", asctime (timeinfo) );
 
     //Hilook IPcamera (substream /102)
-    string vidAddress = "rtsp://admin:Snapper1@192.168.137.100:554/Streaming/Channels/101";
+    string vidAddress = "rtsp://admin:Snapper1@169.254.176.50:554/Streaming/Channels/101";
     VideoCapture cap(vidAddress);
 
     if (!cap.isOpened()) {
         cerr << "ERROR! Unable to open camera\n";
         return -1;
     }
+
+    // Default resolutions of the frame are obtained.The default resolutions are system dependent.
+    int frame_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+    int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+
+    VideoWriter video("outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'), 10, Size(frame_width,frame_height));
 
     //Capture single frame and define arena
     cap >> frame;
@@ -71,6 +77,7 @@ int main(int argc, char** argv)
         putText(src, asctime (timeinfo), Point(800, 650), FONT_HERSHEY_SIMPLEX,
                 1, Scalar(0, 200, 130), 1, 1);
 
+        video.write(src);
 
         // show image with the tracked object
         imshow("LIVE", src);
