@@ -17,18 +17,19 @@ extern "C" {
 #include <errno.h>
 #include <unistd.h>
 
-
-#define	DEVICE_ADD_0 0x64
-#define DEVICE_ADD_1 0x65
-#define DEVICE_ADD_2 0x66
-
-#define READ_DELAY 700000
-
 using std::cin;
 using std::cout;
 using std::endl;
 using namespace std;
 
+#define	DEVICE_ADD_0 0x64
+#define DEVICE_ADD_1 0x65
+#define DEVICE_ADD_2 0x66
+#define DEVICE_ADD_3 0x67
+#define DEVICE_ADD_4 0x68
+
+#define READ_DELAY 700000
+#define READ_BUF_LENGTH 16
 const int READ_CMD[1] = {'R'};
 
 
@@ -45,35 +46,39 @@ int i2c_device_init(int fd, int Addr)
 
 int main()
 {
-  int r;
-  int result;
-  int wbuf[1] = {'R'};
-  int len = 16;
-  uint8_t buf[len];
-  int fd0, fd1, fd2;
+  uint8_t buf[READ_BUF_LENGTH];
+  int fd0, fd1, fd2, fd3, fd4;
 
+  //Initialize I2C temperature channels
   fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
   fd1 = i2c_device_init(fd1, DEVICE_ADD_1);
-  fd2 = i2c_device_init(fd1, DEVICE_ADD_2);
+  fd2 = i2c_device_init(fd2, DEVICE_ADD_2);
+  fd3 = i2c_device_init(fd3, DEVICE_ADD_3);
+  fd4 = i2c_device_init(fd4, DEVICE_ADD_4);
+
+  //Create array of I2C channel file descriptors
+  int fdArr[5] = {fd0, fd1, fd2, fd3, fd4};
 
   for(;;)
   {
-    write(fd0, READ_CMD, 1);
-    write(fd1, READ_CMD, 1);
-    write(fd2, READ_CMD, 1);
+    //Send read command to all sensors
+    for (int i = 0; i < 5; i++)
+    {
+      write(fdArr[i], READ_CMD, 1);
+    }
 
     usleep(READ_DELAY);
 
-    read(fd0, buf, len);
-    cout << (char*)buf << endl;
+    //Read all sensors
+    for (int i = 0; i < 5; i++)
+    {
+      read(fdArr[i], buf, READ_BUF_LENGTH);
+      cout << (char*)buf << endl;
+    }
 
-    read(fd1, buf, len);
-    cout << (char*)buf << endl;
+    cout<<endl;
 
-    read(fd2, buf, len);
-    cout << (char*)buf << endl;
-
-}
+  }
 
   return 0;
 }
