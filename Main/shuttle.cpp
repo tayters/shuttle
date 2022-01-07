@@ -1,14 +1,76 @@
+extern "C" {
+    #include <linux/i2c-dev.h>
+    #include <i2c/smbus.h>
+}
 #include <stdio.h>
 #include <time.h>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
+#include <fstream>
+#include <string>
+#include <stdlib.h>
+#include <stdint.h>
+#include <string.h>
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <asm/ioctl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <thread>
 
 using std::cin;
 using std::cout;
 using std::endl;
+using std::vector;
 using namespace cv;
 using namespace std;
+
+#define	DEVICE_ADD_0 0x64
+#define DEVICE_ADD_1 0x65
+#define DEVICE_ADD_2 0x66
+#define DEVICE_ADD_3 0x67
+#define DEVICE_ADD_4 0x68
+
+#define READ_DELAY 700000
+#define READ_BUF_LENGTH 16
+const int READ_CMD[1] = {'R'};
+int fd0, fd1, fd2, fd3, fd4;
+bool read_complete = true;
+string value;
+
+
+int i2c_device_init(int fd, int Addr)
+{
+  if ((fd = open("/dev/i2c-1", O_RDWR)) < 0)
+    cout << strerror (errno) << endl;
+
+  if (ioctl (fd, I2C_SLAVE, Addr) < 0)
+    cout << strerror (errno) << endl;
+
+  return fd;
+}
+
+string temp_read(int fd)
+{
+  static uint8_t buf[READ_BUF_LENGTH];
+  write(fd, READ_CMD, 1);
+  usleep(READ_DELAY);
+  read(fd, buf, READ_BUF_LENGTH);
+
+  return (char*)buf;
+
+}
+
+ void read_thr(int fd)
+{
+  for(;;)
+  {
+   value = temp_read(fd);
+   read_complete = true;
+  }
+}
+
 
 int main(int argc, char** argv)
 {
@@ -17,7 +79,16 @@ int main(int argc, char** argv)
     Mat frame, thr, gray, src, src_crop;
     time_t rawtime;
 
+    //Initialize I2C temperature channels
+    fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
+    fd1 = i2c_device_init(fd1, DEVICE_ADD_1);
+    fd2 = i2c_device_init(fd2, DEVICE_ADD_2);
+    fd3 = i2c_device_init(fd3, DEVICE_ADD_3);
+    fd4 = i2c_device_init(fd4, DEVICE_ADD_4);
 
+      //start read thread
+    thread th1(read_thr, fd0);
+    cout << value << endl;
 
     struct tm * timeinfo;
     time(&rawtime);
@@ -41,13 +112,8 @@ int main(int argc, char** argv)
 
 
 
-
-
-
     //Capture single frame and define arena
     cap >> frame;
-
-
 
     arena = selectROI("Arena", frame, 0);
     arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
@@ -86,7 +152,7 @@ int main(int argc, char** argv)
                 2, 1);
 
 
-        
+
 
         putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"),
                 Point(100, 100), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
@@ -104,6 +170,14 @@ int main(int argc, char** argv)
 
         // show image with the tracked object
         imshow("LIVE", src);
+
+        if(read_complete)
+        {
+          //th1.join(); kill read thread
+          cout << value << endl;
+          //thread th1(read_thr, fd0);
+          read_complete = false;
+        }
 
         //quit on ESC button
         if (waitKey(1) == 27)break;

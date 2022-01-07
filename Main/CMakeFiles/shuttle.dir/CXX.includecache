@@ -7,6 +7,10 @@
 #IncludeRegexTransform: 
 
 /home/pi/workspace/shuttle/Main/shuttle.cpp
+linux/i2c-dev.h
+-
+i2c/smbus.h
+-
 stdio.h
 -
 time.h
@@ -16,6 +20,28 @@ iostream
 opencv2/opencv.hpp
 -
 opencv2/tracking.hpp
+-
+fstream
+-
+string
+-
+stdlib.h
+-
+stdint.h
+-
+string.h
+-
+fcntl.h
+-
+sys/ioctl.h
+-
+asm/ioctl.h
+-
+errno.h
+-
+unistd.h
+-
+thread
 -
 
 /usr/local/include/opencv4/opencv2/calib3d.hpp
