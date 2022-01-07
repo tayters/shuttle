@@ -1,0 +1,3 @@
+/home/pi/workspace/shuttle/Main/CMakeFiles/rebuild_cache.dir
+/home/pi/workspace/shuttle/Main/CMakeFiles/shuttle.dir
+/home/pi/workspace/shuttle/Main/CMakeFiles/edit_cache.dir
