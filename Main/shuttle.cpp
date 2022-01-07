@@ -35,9 +35,11 @@ using namespace std;
 #define READ_DELAY 700000
 #define READ_BUF_LENGTH 16
 const int READ_CMD[1] = {'R'};
-int fd0, fd1, fd2, fd3, fd4;
+//int fd0, fd1, fd2, fd3, fd4;
+int fdArr[5];
 bool read_complete = true;
 string value;
+string values[5];
 
 
 int i2c_device_init(int fd, int Addr)
@@ -62,12 +64,15 @@ string temp_read(int fd)
 
 }
 
- void read_thr(int fd)
+ void read_thr(void)
 {
   for(;;)
   {
-   value = temp_read(fd);
-   read_complete = true;
+    for (int i=0; i<5; i++)
+    {
+      values[i] = temp_read(fdArr[i]);
+    }
+    read_complete = true;
   }
 }
 
@@ -80,14 +85,19 @@ int main(int argc, char** argv)
     time_t rawtime;
 
     //Initialize I2C temperature channels
-    fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
+    /*fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
     fd1 = i2c_device_init(fd1, DEVICE_ADD_1);
     fd2 = i2c_device_init(fd2, DEVICE_ADD_2);
     fd3 = i2c_device_init(fd3, DEVICE_ADD_3);
     fd4 = i2c_device_init(fd4, DEVICE_ADD_4);
+    */
+    for (int i =0; i<5; i++)
+    {
+      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0+i);
+    }
 
       //start read thread
-    thread th1(read_thr, fd0);
+    thread th1(read_thr);
     cout << value << endl;
 
     struct tm * timeinfo;
@@ -173,9 +183,11 @@ int main(int argc, char** argv)
 
         if(read_complete)
         {
-          //th1.join(); kill read thread
-          cout << value << endl;
-          //thread th1(read_thr, fd0);
+          for (int i=0; i<5; i++)
+          {
+            cout << values[i] <<" ";
+          }
+          cout<<endl;
           read_complete = false;
         }
 
