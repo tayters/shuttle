@@ -18,6 +18,7 @@ extern "C" {
 #include <errno.h>
 #include <unistd.h>
 #include <thread>
+#include <wiringPi.h>
 
 using std::cin;
 using std::cout;
@@ -95,6 +96,27 @@ int main(int argc, char** argv)
     {
       fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0+i);
     }
+
+
+    wiringPiSetup () ;
+    pinMode (0, OUTPUT) ;
+    pinMode (1, OUTPUT) ;
+    pinMode (2, OUTPUT) ;
+
+    for (;;)
+    {
+    digitalWrite (0, HIGH) ; delay (2000) ;
+    digitalWrite (1, HIGH) ; delay (2000) ;
+    digitalWrite (2, HIGH) ; delay (2000) ;
+    cout << "HIGH" << endl;
+    digitalWrite (0, LOW) ; delay (2000) ;
+    digitalWrite (1, LOW) ; delay (2000) ;
+    digitalWrite (2,  LOW) ; delay (2000) ;
+    cout << "LOW" << endl;
+    }
+
+    return 0;
+
 
       //start read thread
     thread th1(read_thr);
