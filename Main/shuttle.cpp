@@ -33,6 +33,10 @@ using namespace std;
 #define DEVICE_ADD_3 0x67
 #define DEVICE_ADD_4 0x68
 
+#define HOT 0
+#define COLD 1
+#define MIX 2
+
 #define READ_DELAY 700000
 #define READ_BUF_LENGTH 16
 const int READ_CMD[1] = {'R'};
@@ -57,12 +61,12 @@ int i2c_device_init(int fd, int Addr)
 string temp_read(int fd)
 {
   static uint8_t buf[READ_BUF_LENGTH];
+
   write(fd, READ_CMD, 1);
   usleep(READ_DELAY);
   read(fd, buf, READ_BUF_LENGTH);
 
   return (char*)buf;
-
 }
 
  void read_thr(void)
@@ -85,6 +89,7 @@ int main(int argc, char** argv)
     Mat frame, thr, gray, src, src_crop;
     time_t rawtime;
 
+
     //Initialize I2C temperature channels
     /*fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
     fd1 = i2c_device_init(fd1, DEVICE_ADD_1);
@@ -94,15 +99,16 @@ int main(int argc, char** argv)
     */
     for (int i =0; i<5; i++)
     {
-      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0+i);
+      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0 + i);
     }
 
 
     wiringPiSetup () ;
-    pinMode (0, OUTPUT) ;
-    pinMode (1, OUTPUT) ;
-    pinMode (2, OUTPUT) ;
+    pinMode(HOT, OUTPUT) ;
+    pinMode(COLD, OUTPUT) ;
+    pinMode(MIX, OUTPUT) ;
 
+    /*
     for (;;)
     {
     digitalWrite (0, HIGH) ; delay (2000) ;
@@ -114,11 +120,9 @@ int main(int argc, char** argv)
     digitalWrite (2,  LOW) ; delay (2000) ;
     cout << "LOW" << endl;
     }
+    */
 
-    return 0;
-
-
-      //start read thread
+    //start read thread
     thread th1(read_thr);
     cout << value << endl;
 
@@ -128,7 +132,7 @@ int main(int argc, char** argv)
     printf ( "The current date/time is: %s", asctime (timeinfo) );
 
     //Hilook IPcamera (substream /102)
-    string vidAddress = "rtsp://admin:Snapper1@192.168.137.100:554/Streaming/Channels/101";
+    string vidAddress = "rtsp://admin:Snapper1@130.216.86.200:554/Streaming/Channels/101";
     VideoCapture cap(vidAddress);
 
     if (!cap.isOpened()) {
@@ -137,12 +141,10 @@ int main(int argc, char** argv)
     }
 
     // Default resolutions of the frame are obtained.The default resolutions are system dependent.
-    //int frame_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
-    //int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+    int frame_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
+    int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 
-    //VideoWriter video("outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'), 10, Size(frame_width,frame_height));
-
-
+    VideoWriter video("/home/pi/Videos/outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'), 10, Size(frame_width,frame_height));
 
     //Capture single frame and define arena
     cap >> frame;
@@ -183,12 +185,20 @@ int main(int argc, char** argv)
                 Point(1000, 600), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
                 2, 1);
 
-
-
-
         putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"),
                 Point(100, 100), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
                 2, 1);
+
+        if (p.x > arena.width*0.5)
+        {
+          digitalWrite(HOT, HIGH);
+          digitalWrite(COLD, LOW);
+        }
+        else
+        {
+          digitalWrite(COLD, HIGH);
+          digitalWrite(HOT, LOW);
+        }
 
 
         time(&rawtime);
@@ -198,13 +208,17 @@ int main(int argc, char** argv)
                 1, Scalar(0, 200, 130), 1, 1);
 
 
-      //video.write(src);
+        video.write(src);
 
         // show image with the tracked object
         imshow("LIVE", src);
 
         if(read_complete)
         {
+          time(&rawtime);
+          timeinfo = localtime(&rawtime);
+          printf ("%s ", asctime (timeinfo));
+
           for (int i=0; i<5; i++)
           {
             cout << values[i] <<" ";
