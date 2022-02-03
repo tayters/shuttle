@@ -1,7 +1,5 @@
-extern "C" {
-    #include <linux/i2c-dev.h>
-    #include <i2c/smbus.h>
-}
+#include <linux/i2c-dev.h>
+#include <i2c/smbus.h>
 #include <stdio.h>
 #include <time.h>
 #include <iostream>
@@ -20,10 +18,6 @@ extern "C" {
 #include <thread>
 #include <wiringPi.h>
 
-using std::cin;
-using std::cout;
-using std::endl;
-using std::vector;
 using namespace cv;
 using namespace std;
 
@@ -40,13 +34,15 @@ using namespace std;
 #define READ_DELAY 700000
 #define READ_BUF_LENGTH 16
 const int READ_CMD[1] = {'R'};
-//int fd0, fd1, fd2, fd3, fd4;
+
+#define BLACK Scalar(0,0,0)
+#define WHITE Scalar(255,255,255)
+
 int fdArr[5];
 bool read_complete = true;
-string value;
 string values[5];
 
-
+/*Function to initialise a I2C device returning a filehandle(fd)*/
 int i2c_device_init(int fd, int Addr)
 {
   if ((fd = open("/dev/i2c-1", O_RDWR)) < 0)
@@ -58,6 +54,7 @@ int i2c_device_init(int fd, int Addr)
   return fd;
 }
 
+/*Function to read from PT1000 temperature I2C device*/
 string temp_read(int fd)
 {
   static uint8_t buf[READ_BUF_LENGTH];
@@ -69,14 +66,14 @@ string temp_read(int fd)
   return (char*)buf;
 }
 
- void read_thr(void)
+/*Separate thread for reading tempeartures*/
+ void temp_read_thr(void)
 {
   for(;;)
   {
     for (int i=0; i<5; i++)
-    {
       values[i] = temp_read(fdArr[i]);
-    }
+
     read_complete = true;
   }
 }
@@ -88,74 +85,56 @@ int main(int argc, char** argv)
     Point arena_centre;
     Mat frame, thr, gray, src, src_crop;
     time_t rawtime;
+    struct tm * timeinfo;
 
-
-    //Initialize I2C temperature channels
-    /*fd0 = i2c_device_init(fd0, DEVICE_ADD_0);
-    fd1 = i2c_device_init(fd1, DEVICE_ADD_1);
-    fd2 = i2c_device_init(fd2, DEVICE_ADD_2);
-    fd3 = i2c_device_init(fd3, DEVICE_ADD_3);
-    fd4 = i2c_device_init(fd4, DEVICE_ADD_4);
-    */
-    for (int i =0; i<5; i++)
-    {
-      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0 + i);
-    }
-
-
+    //Initialise relay(pump) control
     wiringPiSetup () ;
     pinMode(HOT, OUTPUT) ;
     pinMode(COLD, OUTPUT) ;
     pinMode(MIX, OUTPUT) ;
 
-    /*
-    for (;;)
-    {
-    digitalWrite (0, HIGH) ; delay (2000) ;
-    digitalWrite (1, HIGH) ; delay (2000) ;
-    digitalWrite (2, HIGH) ; delay (2000) ;
-    cout << "HIGH" << endl;
-    digitalWrite (0, LOW) ; delay (2000) ;
-    digitalWrite (1, LOW) ; delay (2000) ;
-    digitalWrite (2,  LOW) ; delay (2000) ;
-    cout << "LOW" << endl;
-    }
-    */
+    // Intialise temp probes and start temperature read thread
+    for (int i =0; i<5; i++)
+      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0 + i);
 
-    //start read thread
-    thread th1(read_thr);
-    cout << value << endl;
+    thread th1(temp_read_thr);
 
-    struct tm * timeinfo;
+    //Get start time
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    printf ( "The current date/time is: %s", asctime (timeinfo) );
+    printf ( "The current date/time is: %s", asctime(timeinfo));
 
-    //Hilook IPcamera (substream /102)
-    string vidAddress = "rtsp://admin:Snapper1@130.216.86.200:554/Streaming/Channels/101";
-    VideoCapture cap(vidAddress);
+    /*Setup Hilook IPcamera (substream /102), will need to be changed depending
+    on network*/
+    string vidAddress =
+    "rtsp://admin:Snapper1@130.216.86.200:554/Streaming/Channels/101";
+    VideoCapture cap1(vidAddress);
 
-    if (!cap.isOpened()) {
+    if (!cap1.isOpened())
+    {
         cerr << "ERROR! Unable to open camera\n";
         return -1;
     }
 
-    // Default resolutions of the frame are obtained.The default resolutions are system dependent.
-    int frame_width = cap.get(cv::CAP_PROP_FRAME_WIDTH);
-    int frame_height = cap.get(cv::CAP_PROP_FRAME_HEIGHT);
-
-    VideoWriter video("/home/pi/Videos/outcpp.avi", cv::VideoWriter::fourcc('M','J','P','G'), 10, Size(frame_width,frame_height));
-
     //Capture single frame and define arena
-    cap >> frame;
-
+    cap1 >> frame;
     arena = selectROI("Arena", frame, 0);
     arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
     arena_centre = (arena.br() + arena.tl()) * 0.5;
-
-
     cout << "Arena: " << arena << endl;
-    cout << "Arena_centre: " << arena_centre <<endl;
+
+    // Setup videocapture
+    int frame_width = cap1.get(CAP_PROP_FRAME_WIDTH);
+    int frame_height = cap1.get(CAP_PROP_FRAME_HEIGHT);
+    string vidfilepath = "/home/pi/Videos/";
+    string vidfilename = "out1.avi";
+    VideoWriter vw((vidfilepath + vidfilename),
+                      VideoWriter::fourcc('M','P','4','V'),
+                      10, Size(frame_width, frame_height));
+
+    //Refresh video stream
+    cap1.release();
+    VideoCapture cap(vidAddress);
 
     for (;;)
     {
@@ -169,6 +148,7 @@ int main(int argc, char** argv)
 
         //Grayscale
         cvtColor(src_crop, gray, COLOR_BGR2GRAY);
+
         //Threshold and invert
         threshold(gray, thr, 10,255,THRESH_BINARY);
         thr = ~(thr);
@@ -178,16 +158,17 @@ int main(int argc, char** argv)
         Point p(m.m10/m.m00, m.m01/m.m00);
 
         //Print circle to centre of object
-        circle(src_crop, p, 5, Scalar(255,0,0), -1);
+        circle(src_crop, p, 5, Scalar(0,0,255), -1);
 
         //Show x,y coordinates
-        putText(src,"x:"+to_string(p.x)+" y:"+to_string(p.y),
-                Point(1000, 600), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
-                2, 1);
+        rectangle(src, Rect(Point(0,0), Size(300,75)), BLACK,
+                  FILLED);
 
-        putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"),
-                Point(100, 100), FONT_HERSHEY_SIMPLEX, 1, Scalar(0, 200, 130),
-                2, 1);
+        putText(src,"x:"+to_string(p.x)+" y:"+to_string(p.y), Point(10, 30),
+                FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+
+        putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"), Point(10, 45),
+                FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
 
         if (p.x > arena.width*0.5)
         {
@@ -200,18 +181,18 @@ int main(int argc, char** argv)
           digitalWrite(HOT, LOW);
         }
 
-
+        //Display time
         time(&rawtime);
         timeinfo = localtime(&rawtime);
+        putText(src, asctime (timeinfo), Point(10, 15), FONT_HERSHEY_PLAIN,
+                1, WHITE, 1, 1);
 
-        putText(src, asctime (timeinfo), Point(800, 650), FONT_HERSHEY_SIMPLEX,
-                1, Scalar(0, 200, 130), 1, 1);
-
-
-        video.write(src);
 
         // show image with the tracked object
         imshow("LIVE", src);
+
+        //Write to file
+        vw.write(src);
 
         if(read_complete)
         {
@@ -223,12 +204,17 @@ int main(int argc, char** argv)
           {
             cout << values[i] <<" ";
           }
-          cout<<endl;
+          cout << endl;
           read_complete = false;
         }
 
         //quit on ESC button
-        if (waitKey(1) == 27)break;
+        if (waitKey(1) == 27)
+        {
+          vw.release();
+          cap.release();
+          break;
+        }
     }
 
     return 0;
