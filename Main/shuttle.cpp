@@ -18,6 +18,7 @@
 #include <thread>
 #include <wiringPi.h>
 
+
 using namespace cv;
 using namespace std;
 
@@ -78,14 +79,29 @@ string temp_read(int fd)
   }
 }
 
+string generate_filename(time_t in_time)
+{
+  struct tm * time_struct;
+  char fn_str[80];
+  string out_str;
+
+  time_struct = localtime(&in_time);
+  strftime(fn_str, 80,"shuttleVid_%H-%M-%S_%d-%m-%Y", time_struct);
+  out_str = fn_str;
+
+  return out_str;
+}
+
 
 int main(int argc, char** argv)
 {
     Rect arena, arena_left, arena_right;
     Point arena_centre;
     Mat frame, thr, gray, src, src_crop;
-    time_t rawtime;
+    time_t rawtime, start_time;
     struct tm * timeinfo;
+    double time_elapsed;
+
 
     //Initialise relay(pump) control
     wiringPiSetup () ;
@@ -101,6 +117,7 @@ int main(int argc, char** argv)
 
     //Get start time
     time(&rawtime);
+    time(&start_time);
     timeinfo = localtime(&rawtime);
     printf ( "The current date/time is: %s", asctime(timeinfo));
 
@@ -121,16 +138,18 @@ int main(int argc, char** argv)
     arena = selectROI("Arena", frame, 0);
     arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
     arena_centre = (arena.br() + arena.tl()) * 0.5;
+    destroyWindow("Arena");
     cout << "Arena: " << arena << endl;
 
     // Setup videocapture
     int frame_width = cap1.get(CAP_PROP_FRAME_WIDTH);
     int frame_height = cap1.get(CAP_PROP_FRAME_HEIGHT);
     string vidfilepath = "/home/pi/Videos/";
-    string vidfilename = "out1.avi";
-    VideoWriter vw((vidfilepath + vidfilename),
+    string vidfilename = generate_filename(start_time);
+    VideoWriter vw((vidfilepath + vidfilename + ".mp4"),
                       VideoWriter::fourcc('M','P','4','V'),
                       10, Size(frame_width, frame_height));
+
 
     //Refresh video stream
     cap1.release();
@@ -199,6 +218,21 @@ int main(int argc, char** argv)
           time(&rawtime);
           timeinfo = localtime(&rawtime);
           printf ("%s ", asctime (timeinfo));
+          time_elapsed = difftime(rawtime, start_time);
+          cout << time_elapsed << endl;
+
+          if(time_elapsed > 1200)
+          {
+            time(&start_time);
+            vw.release();
+            vidfilename = generate_filename(start_time);
+            vw.open((vidfilepath + vidfilename + ".mp4"),
+                              VideoWriter::fourcc('M','P','4','V'),
+                              10, Size(frame_width, frame_height));
+
+          }
+
+
 
           for (int i=0; i<5; i++)
           {
