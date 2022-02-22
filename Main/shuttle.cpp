@@ -28,9 +28,10 @@ using namespace std;
 #define DEVICE_ADD_3 0x67
 #define DEVICE_ADD_4 0x68
 
-#define HOT 0
-#define COLD 1
-#define MIX 2
+#define COLD_L 0
+#define COLD_R 1
+#define HOT_L 2
+#define HOT_R 3
 
 #define READ_DELAY 700000
 #define READ_BUF_LENGTH 16
@@ -105,9 +106,10 @@ int main(int argc, char** argv)
 
     //Initialise relay(pump) control
     wiringPiSetup () ;
-    pinMode(HOT, OUTPUT) ;
-    pinMode(COLD, OUTPUT) ;
-    pinMode(MIX, OUTPUT) ;
+    pinMode(COLD_L, OUTPUT) ;
+    pinMode(COLD_R, OUTPUT) ;
+    pinMode(HOT_L, OUTPUT) ;
+    pinMode(HOT_R, OUTPUT) ;
 
     // Intialise temp probes and start temperature read thread
     for (int i =0; i<5; i++)
@@ -124,7 +126,7 @@ int main(int argc, char** argv)
     /*Setup Hilook IPcamera (substream /102), will need to be changed depending
     on network*/
     string vidAddress =
-    "rtsp://admin:Snapper1@130.216.86.200:554/Streaming/Channels/101";
+    "rtsp://admin:Snapper1@10.45.100.72:554/Streaming/Channels/101";
     VideoCapture cap1(vidAddress);
 
     if (!cap1.isOpened())
@@ -191,13 +193,17 @@ int main(int argc, char** argv)
 
         if (p.x > arena.width*0.5)
         {
-          digitalWrite(HOT, HIGH);
-          digitalWrite(COLD, LOW);
+          digitalWrite(HOT_L, LOW);
+          digitalWrite(COLD_L, LOW);
+          digitalWrite(COLD_R, LOW);
+          digitalWrite(HOT_R, LOW);
         }
         else
         {
-          digitalWrite(COLD, HIGH);
-          digitalWrite(HOT, LOW);
+          digitalWrite(COLD_L, HIGH);
+          digitalWrite(HOT_L, HIGH);
+          digitalWrite(COLD_R, HIGH);
+          digitalWrite(HOT_R, HIGH);
         }
 
         //Display time
@@ -247,6 +253,10 @@ int main(int argc, char** argv)
         {
           vw.release();
           cap.release();
+          digitalWrite(HOT_L, LOW);
+          digitalWrite(COLD_L, LOW);
+          digitalWrite(COLD_R, LOW);
+          digitalWrite(HOT_R, LOW);
           break;
         }
     }
