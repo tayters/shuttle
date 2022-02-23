@@ -18,7 +18,6 @@
 #include <thread>
 #include <wiringPi.h>
 
-
 using namespace cv;
 using namespace std;
 
@@ -28,11 +27,6 @@ using namespace std;
 #define DEVICE_ADD_3 0x67
 #define DEVICE_ADD_4 0x68
 
-#define COLD_L 0
-#define COLD_R 1
-#define HOT_L 2
-#define HOT_R 3
-
 #define READ_DELAY 700000
 #define READ_BUF_LENGTH 16
 const int READ_CMD[1] = {'R'};
@@ -40,43 +34,109 @@ const int READ_CMD[1] = {'R'};
 #define BLACK Scalar(0,0,0)
 #define WHITE Scalar(255,255,255)
 
-int fdArr[5];
+enum pumpcontrol {COLD_L, COLD_R, HOT_L, HOT_R, NONE};
 bool read_complete = true;
-string values[5];
 
-/*Function to initialise a I2C device returning a filehandle(fd)*/
-int i2c_device_init(int fd, int Addr)
+class Thermocouple
 {
-  if ((fd = open("/dev/i2c-1", O_RDWR)) < 0)
-    cout << strerror (errno) << endl;
+  public:
+  int fd;
+  double deg;
+  string deg_string;
 
-  if (ioctl (fd, I2C_SLAVE, Addr) < 0)
-    cout << strerror (errno) << endl;
+  //constructor
+  Thermocouple(int addr)
+  {
+    //open i2cdevice
+    if ((fd = open("/dev/i2c-1", O_RDWR)) < 0)
+      cout << strerror (errno) << endl;
 
-  return fd;
-}
+    if (ioctl (fd, I2C_SLAVE, addr) < 0)
+      cout << strerror (errno) << endl;
+  }
 
-/*Function to read from PT1000 temperature I2C device*/
-string temp_read(int fd)
+  void update()
+  {
+    static uint8_t buf[READ_BUF_LENGTH];
+
+    write(fd, READ_CMD, 1);
+    usleep(READ_DELAY);
+    read(fd, buf, READ_BUF_LENGTH);
+
+    deg_string = (char*)buf;
+    deg_string.erase(0,1);
+    deg = stod(deg_string);
+  }
+};
+
+class Pump
 {
-  static uint8_t buf[READ_BUF_LENGTH];
+  public:
+    bool active;
+    pumpcontrol outpin;
 
-  write(fd, READ_CMD, 1);
-  usleep(READ_DELAY);
-  read(fd, buf, READ_BUF_LENGTH);
+    //Constructor
+    Pump(pumpcontrol p)
+    {
+      if(p != NONE)
+      {
+      outpin = p;
+      pinMode(outpin, OUTPUT);
+      digitalWrite(outpin, LOW);
+      active = false;
+      }
+    }
 
-  return (char*)buf;
-}
+    void turnOn()
+    {
+      if(!active)
+      {
+        digitalWrite(outpin, HIGH);
+        active = true;
+      }
+    }
 
-/*Separate thread for reading tempeartures*/
- void temp_read_thr(void)
+    void turnOff()
+    {
+      if(active)
+      {
+        digitalWrite(outpin, LOW);
+        active = false;
+      }
+    }
+};
+
+class Tank
+{
+  public:
+    Thermocouple tC;
+    Pump hotPump, coldPump;
+
+    //Constructor
+    Tank(int addr, pumpcontrol h, pumpcontrol c)
+      : tC(addr), hotPump(h), coldPump(c)
+      {
+      }
+
+    //Destructor
+    ~Tank()
+    {
+      hotPump.turnOff();
+      coldPump.turnOff();
+    }
+
+};
+
+/*Separate thread for reading temperatures*/
+void read_thr(Tank *t1, Tank *t2, Tank *t3, Tank *t4)
 {
   for(;;)
   {
-    for (int i=0; i<5; i++)
-      values[i] = temp_read(fdArr[i]);
-
-    read_complete = true;
+   t1->tC.update();
+   t2->tC.update();
+   t3->tC.update();
+   t4->tC.update();
+   read_complete = true;
   }
 }
 
@@ -103,19 +163,15 @@ int main(int argc, char** argv)
     struct tm * timeinfo;
     double time_elapsed;
 
-
-    //Initialise relay(pump) control
+    /*Setup Tanks pumps and thermocouples */
     wiringPiSetup () ;
-    pinMode(COLD_L, OUTPUT) ;
-    pinMode(COLD_R, OUTPUT) ;
-    pinMode(HOT_L, OUTPUT) ;
-    pinMode(HOT_R, OUTPUT) ;
+    Tank rightTank(DEVICE_ADD_1, HOT_R, COLD_R);
+    Tank leftTank(DEVICE_ADD_2, HOT_L, COLD_L);
+    Tank coldTank(DEVICE_ADD_3, NONE, NONE);
+    Tank hotTank(DEVICE_ADD_0, NONE, NONE);
 
-    // Intialise temp probes and start temperature read thread
-    for (int i =0; i<5; i++)
-      fdArr[i] = i2c_device_init(fdArr[i], DEVICE_ADD_0 + i);
-
-    thread th1(temp_read_thr);
+    /*start temperature reading thread */
+    thread th1(read_thr, &leftTank, &rightTank, &hotTank, &coldTank);
 
     //Get start time
     time(&rawtime);
@@ -123,7 +179,7 @@ int main(int argc, char** argv)
     timeinfo = localtime(&rawtime);
     printf ( "The current date/time is: %s", asctime(timeinfo));
 
-    /*Setup Hilook IPcamera (substream /102), will need to be changed depending
+    /*Setup Hilook IPcamera (substream /101), will need to be changed depending
     on network*/
     string vidAddress =
     "rtsp://admin:Snapper1@10.45.100.72:554/Streaming/Channels/101";
@@ -157,8 +213,17 @@ int main(int argc, char** argv)
     cap1.release();
     VideoCapture cap(vidAddress);
 
+
     for (;;)
     {
+      if(read_complete)
+      {
+      cout << leftTank.tC.deg_string + " " + rightTank.tC.deg_string + " ";
+      cout << hotTank.tC.deg_string + " " + coldTank.tC.deg_string << endl;
+
+      read_complete = false;
+      }
+
         // get frame from the video and crate cropped area
         cap >> src;
         src_crop = src(arena);
@@ -191,20 +256,8 @@ int main(int argc, char** argv)
         putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"), Point(10, 45),
                 FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
 
-        if (p.x > arena.width*0.5)
-        {
-          digitalWrite(HOT_L, LOW);
-          digitalWrite(COLD_L, LOW);
-          digitalWrite(COLD_R, LOW);
-          digitalWrite(HOT_R, LOW);
-        }
-        else
-        {
-          digitalWrite(COLD_L, HIGH);
-          digitalWrite(HOT_L, HIGH);
-          digitalWrite(COLD_R, HIGH);
-          digitalWrite(HOT_R, HIGH);
-        }
+        /*if (p.x > arena.width*0.5){}
+        else{}*/
 
         //Display time
         time(&rawtime);
@@ -239,12 +292,9 @@ int main(int argc, char** argv)
           }
 
 
+          cout << leftTank.tC.deg_string + " " + rightTank.tC.deg_string + " ";
+          cout << hotTank.tC.deg_string + " " + coldTank.tC.deg_string << endl;
 
-          for (int i=0; i<5; i++)
-          {
-            cout << values[i] <<" ";
-          }
-          cout << endl;
           read_complete = false;
         }
 
@@ -253,10 +303,7 @@ int main(int argc, char** argv)
         {
           vw.release();
           cap.release();
-          digitalWrite(HOT_L, LOW);
-          digitalWrite(COLD_L, LOW);
-          digitalWrite(COLD_R, LOW);
-          digitalWrite(HOT_R, LOW);
+
           break;
         }
     }
