@@ -162,6 +162,12 @@ int main(int argc, char** argv)
     time_t rawtime, start_time;
     struct tm * timeinfo;
     double time_elapsed;
+    ofstream logfile;
+    char tmstr[80];
+    string tstr;
+
+
+
 
     /*Setup Tanks pumps and thermocouples */
     wiringPiSetup () ;
@@ -193,6 +199,7 @@ int main(int argc, char** argv)
 
     //Capture single frame and define arena
     cap1 >> frame;
+    cap1 >> frame;
     arena = selectROI("Arena", frame, 0);
     arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
     arena_centre = (arena.br() + arena.tl()) * 0.5;
@@ -208,7 +215,8 @@ int main(int argc, char** argv)
                       VideoWriter::fourcc('M','P','4','V'),
                       10, Size(frame_width, frame_height));
 
-
+    logfile.open(vidfilepath + vidfilename + "_log.txt");
+    logfile << "Time Xpos Ypos rightTankTemp leftTankTemp" <<endl;
     //Refresh video stream
     cap1.release();
     VideoCapture cap(vidAddress);
@@ -216,15 +224,7 @@ int main(int argc, char** argv)
 
     for (;;)
     {
-      if(read_complete)
-      {
-      cout << leftTank.tC.deg_string + " " + rightTank.tC.deg_string + " ";
-      cout << hotTank.tC.deg_string + " " + coldTank.tC.deg_string << endl;
-
-      read_complete = false;
-      }
-
-        // get frame from the video and crate cropped area
+        // get frame from the video and create cropped area
         cap >> src;
         src_crop = src(arena);
 
@@ -276,7 +276,7 @@ int main(int argc, char** argv)
         {
           time(&rawtime);
           timeinfo = localtime(&rawtime);
-          printf ("%s ", asctime (timeinfo));
+          printf ("%s ", asctime(timeinfo));
           time_elapsed = difftime(rawtime, start_time);
           cout << time_elapsed << endl;
 
@@ -295,6 +295,13 @@ int main(int argc, char** argv)
           cout << leftTank.tC.deg_string + " " + rightTank.tC.deg_string + " ";
           cout << hotTank.tC.deg_string + " " + coldTank.tC.deg_string << endl;
 
+
+
+          strftime(tmstr, 80,"%H:%M:%S %d/%m/%Y", timeinfo);
+          tstr=tmstr;
+          logfile << tstr+" "+to_string(p.x)+" "+to_string(p.y)+" "+
+          rightTank.tC.deg_string+" "+leftTank.tC.deg_string<<endl;
+
           read_complete = false;
         }
 
@@ -303,6 +310,8 @@ int main(int argc, char** argv)
         {
           vw.release();
           cap.release();
+
+          logfile.close();
 
           break;
         }
