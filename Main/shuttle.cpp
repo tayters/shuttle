@@ -155,6 +155,15 @@ string generate_filename(time_t in_time)
   return out_str;
 }
 
+void get_time(struct tm ** temp)
+{
+    time_t rawtime;
+    time(&rawtime);
+    *temp = localtime(&rawtime);
+
+    //printf ( "The current date/time is: %s", asctime(temp));
+}
+
 
 int main(int argc, char** argv)
 {
@@ -184,11 +193,13 @@ int main(int argc, char** argv)
   thread th1(read_thr, &leftTank, &rightTank, &hotTank, &coldTank);
 
   //Get start time
-  time(&rawtime);
   time(&start_time);
-  timeinfo = localtime(&rawtime);
+
+  get_time(&timeinfo);
   printf ( "The current date/time is: %s", asctime(timeinfo));
 
+
+  
   /*Setup Hilook IPcamera (substream /101), will need to be changed depending
   on network*/
   string vidAddress =
@@ -283,9 +294,8 @@ int main(int argc, char** argv)
     //Display time
     time(&rawtime);
     timeinfo = localtime(&rawtime);
-    putText(thr, asctime (timeinfo), Point(10, 15), FONT_HERSHEY_PLAIN,
+    putText(src, asctime (timeinfo), Point(10, 15), FONT_HERSHEY_PLAIN,
     1, WHITE, 1, 1);
-
 
     // show image with the tracked object
     //imshow("THRESH", thr);
