@@ -5,6 +5,7 @@
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <opencv2/tracking.hpp>
+#include <opencv2/highgui.hpp>
 #include <fstream>
 #include <string>
 #include <stdlib.h>
@@ -42,7 +43,7 @@ using namespace std;
 
 #define VIDEO_LENGTH 1200
 
-enum pumpcontrol {COLD_L, COLD_R, HOT_L, HOT_R, NONE};
+enum pumpcontrol {HOT_L, HOT_R, COLD_L, COLD_R, NONE};
 bool read_complete = true;
 
 class Thermocouple
@@ -100,7 +101,7 @@ public:
   {
     if(!active)
     {
-      digitalWrite(outpin, HIGH);
+      //digitalWrite(outpin, HIGH);
       active = true;
     }
   }
@@ -177,6 +178,7 @@ string get_time_string(void)
 }
 
 
+
 int main(int argc, char** argv)
 {
   vector<vector<Point>> contours;
@@ -203,9 +205,11 @@ int main(int argc, char** argv)
   cout << "Start time: " + get_time_string() << endl;
 
   //Setup arena
-  Rect arena = Rect(Point(70,170),Size(1070,480));
+  Rect arena = Rect(Point(30,170),Size(1130,540));
   Rect arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
   Point arena_centre = (arena.br() + arena.tl()) * 0.5;
+  Rect info_left = Rect((arena.tl()-Point(0,51)),Size(200,50));
+  Rect info_right = Rect((arena.tl()+Point(arena.width/2,-51)),Size(200,50));
 
   // Setup videocapture
   string vidfilepath = "/home/pi/Videos/";
@@ -223,19 +227,35 @@ int main(int argc, char** argv)
   //Start video stream
   VideoCapture cap(vidAddress);
 
+  Ptr<BackgroundSubtractor> pBackSub;
+  Mat frame, fgMask;
+  //pBackSub = createBackgroundSubtractorMOG2();
+  for(int i = 0; i<10; i++)
+  {
+  cap >> fgMask ;
+  }
+  //imwrite("test.png",fgMask);
+
+
+
+
   for (;;)
   {
     //Get frame from the video and create cropped area
     cap >> src;
     src_crop = src(arena);
 
+    //subtract(src,fgMask,frame);
     //Grayscale
     cvtColor(src_crop, gray, COLOR_BGR2GRAY);
 
     //Threshold and invert
-    threshold(gray, thr, thresh_value, 255, THRESH_BINARY_INV);
+    threshold(src_crop, thr, thresh_value, 255, THRESH_BINARY_INV);
+    //update the background model
+
 
     // Run through canny function and find contours
+    /*
     Canny(thr, can, 50, 150, 3 );
     findContours(can, contours, hierarchy, RETR_TREE,
                   CHAIN_APPROX_SIMPLE, Point(0, 0));
@@ -254,6 +274,9 @@ int main(int argc, char** argv)
         break;
       }
     }
+    */
+
+    p= arena.tl();
 
     //Show x,y coordinates
     rectangle(src, Rect(Point(0,0), Size(300,75)), BLACK, FILLED);
@@ -269,14 +292,28 @@ int main(int argc, char** argv)
     //Draw arenas
     rectangle(src, arena, BLUE, 2);
     rectangle(src, arena_left, BLUE, 2);
+    rectangle(src, info_left, BLACK, FILLED);
+    rectangle(src, info_right, BLACK, FILLED);
     //Chamber temperatures
-    putText(src, (rightTank.tC.deg_string), arena.tl()+Point(10,15),
-            FONT_HERSHEY_PLAIN, 1, BLUE, 1, 1);
-    putText(src, (leftTank.tC.deg_string), arena.tl()+Point(545,15),
-            FONT_HERSHEY_PLAIN, 1, BLUE, 1, 1);
+    putText(src, "LEFT "+(leftTank.tC.deg_string)+" "+(hotTank.tC.deg_string), info_left.tl()+Point(10,15),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    putText(src, leftTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_left.tl()+Point(10,30),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    putText(src, leftTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", info_left.tl()+Point(10,45),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    putText(src, "RIGHT "+(rightTank.tC.deg_string)+" "+(hotTank.tC.deg_string), info_right.tl()+Point(10,15),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    putText(src, rightTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_right.tl()+Point(10,30),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    putText(src, rightTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", info_right.tl()+Point(10,45),
+            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
 
     // show image with the tracked object
-    imshow("THRESH", thr);
+    //imshow("frame", frame);
+    //imshow("mask", fgMask);
+    //imshow("THRESH", thr);
+    //Create a window
+    namedWindow("LIVE", 1);
     imshow("LIVE", src);
 
     //Write video to file
@@ -309,6 +346,57 @@ int main(int argc, char** argv)
       read_complete = false;
     }
 
+/*
+    if(waitKey(0)==(int)'o')
+    {
+      if(!leftTank.hotPump.active){
+        leftTank.hotPump.turnOn();
+        cout<<"Left Hot Pump On"<<endl;
+      }else{
+        leftTank.hotPump.turnOff();
+        cout<<"Left Hot Pump Off"<<endl;
+      }
+    }
+
+    if(waitKey(0)==(int)'p')
+    {
+      if(!leftTank.coldPump.active){
+        leftTank.coldPump.turnOn();
+        cout<<"Left Cold Pump On"<<endl;
+      }else{
+        leftTank.coldPump.turnOff();
+        cout<<"Left Cold Pump Off"<<endl;
+      }
+    }
+
+//r
+    if(waitKey(0)==(int)'k')o
+    {
+      if(!rightTank.hotPump.active){
+        rightTank.hotPump.turnOn();
+        cout<<"Right Hot Pump On"<<endl;
+      }else{
+        rightTank.hotPump.turnOff();
+        cout<<"Right Hot Pump Off"<<endl;
+      }
+    }
+//f
+    if(waitKey(0)==(int)'l')
+    {
+      if(!rightTank.coldPump.active){
+        rightTank.coldPump.turnOn();
+        cout<<"Right Hot Pump On"<<endl;
+      }else{
+        rightTank.coldPump.turnOff();
+        cout<<"Right Hot Pump Off"<<endl;
+      }
+    }
+    */
+
+
+
+
+    /*
     if(waitKey(1)==62)
     {
       thresh_value++;
@@ -332,7 +420,7 @@ int main(int argc, char** argv)
       min_area--;
       cout<<"Min area: "<<min_area<<endl;
     }
-
+    */
 
     //quit on ESC button
     if (waitKey(1) == 27)

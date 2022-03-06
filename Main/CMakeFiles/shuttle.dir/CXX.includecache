@@ -21,6 +21,8 @@ opencv2/opencv.hpp
 -
 opencv2/tracking.hpp
 -
+opencv2/highgui.hpp
+-
 fstream
 -
 string
