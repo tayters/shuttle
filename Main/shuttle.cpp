@@ -51,7 +51,7 @@ class Thermocouple
 public:
   int fd;
   double deg;
-  string deg_string;
+  string deg_string = "0";
 
   //constructor
   Thermocouple(int addr)
@@ -194,11 +194,11 @@ int main(int argc, char** argv)
   wiringPiSetup();
   Tank rightTank(DEVICE_ADD_1, HOT_R, COLD_R);
   Tank leftTank(DEVICE_ADD_2, HOT_L, COLD_L);
-  Tank coldTank(DEVICE_ADD_3, NONE, NONE);
-  Tank hotTank(DEVICE_ADD_0, NONE, NONE);
+  Tank midRight(DEVICE_ADD_3, NONE, NONE);
+  Tank midLeft(DEVICE_ADD_0, NONE, NONE);
 
   /*start temperature reading thread */
-  thread th1(read_thr, &leftTank, &rightTank, &hotTank, &coldTank);
+  thread th1(read_thr, &leftTank, &rightTank, &midRight, &midLeft);
 
   //Get start time
   time(&start_time);
@@ -220,7 +220,7 @@ int main(int argc, char** argv)
   //Open logfile for writing to
   ofstream logfile;
   logfile.open(vidfilepath + vidfilename + "_log.txt");
-  logfile << "Date Time Xpos Ypos rightTankTemp leftTankTemp" <<endl;
+  logfile << "Date Time Xpos Ypos RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold" <<endl;
 
   /*Setup Hilook IPcamera (substream /101), will need to be changed depending on network*/
   string vidAddress = "rtsp://admin:Snapper1@10.45.100.72:554/Streaming/Channels/101";
@@ -236,9 +236,6 @@ int main(int argc, char** argv)
   }
   //imwrite("test.png",fgMask);
 
-
-
-
   for (;;)
   {
     //Get frame from the video and create cropped area
@@ -251,8 +248,6 @@ int main(int argc, char** argv)
 
     //Threshold and invert
     threshold(src_crop, thr, thresh_value, 255, THRESH_BINARY_INV);
-    //update the background model
-
 
     // Run through canny function and find contours
     /*
@@ -276,7 +271,7 @@ int main(int argc, char** argv)
     }
     */
 
-    p= arena.tl();
+    p = arena.tl();
 
     //Show x,y coordinates
     rectangle(src, Rect(Point(0,0), Size(300,75)), BLACK, FILLED);
@@ -295,13 +290,13 @@ int main(int argc, char** argv)
     rectangle(src, info_left, BLACK, FILLED);
     rectangle(src, info_right, BLACK, FILLED);
     //Chamber temperatures
-    putText(src, "LEFT "+(leftTank.tC.deg_string)+" "+(hotTank.tC.deg_string), info_left.tl()+Point(10,15),
+    putText(src, "LEFT "+(leftTank.tC.deg_string)+" "+(midLeft.tC.deg_string), info_left.tl()+Point(10,15),
             FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
     putText(src, leftTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_left.tl()+Point(10,30),
             FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
     putText(src, leftTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", info_left.tl()+Point(10,45),
             FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, "RIGHT "+(rightTank.tC.deg_string)+" "+(hotTank.tC.deg_string), info_right.tl()+Point(10,15),
+    putText(src, "RIGHT "+(rightTank.tC.deg_string)+" "+(midRight.tC.deg_string), info_right.tl()+Point(10,15),
             FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
     putText(src, rightTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_right.tl()+Point(10,30),
             FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
@@ -336,12 +331,15 @@ int main(int argc, char** argv)
         vw.open((vidfilepath + vidfilename + ".mp4"),
                 VideoWriter::fourcc('m','p','4','v'), 10,
                 Size(FRAME_WIDTH, FRAME_HEIGHT));
-        logfile << "Date Time Xpos Ypos rightTankTemp leftTankTemp" <<endl;
+        logfile << "Date Time Xpos Ypos RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold" <<endl;
       }
 
-      logfile << get_time_string() + " " + to_string(p.x) + " " + to_string(p.y)
-                  + " " + rightTank.tC.deg_string + " " +
-                  leftTank.tC.deg_string << endl;
+      logfile << get_time_string() + " " + to_string(p.x) + " " + to_string(p.y);
+      logfile << " " << rightTank.tC.deg_string << " " << midRight.tC.deg_string
+                  << " " << leftTank.tC.deg_string << " " << midLeft.tC.deg_string;
+      logfile << " " << rightTank.hotPump.active << " " << rightTank.coldPump.active
+                  << " " << leftTank.hotPump.active << " " << leftTank.coldPump.active
+                  << endl;
 
       read_complete = false;
     }
