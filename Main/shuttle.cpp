@@ -346,54 +346,49 @@ int main(int argc, char** argv)
       read_complete = false;
     }
 
-/*
-    if(waitKey(0)==(int)'o')
+    switch((char)waitKey(1))
     {
-      if(!leftTank.hotPump.active){
-        leftTank.hotPump.turnOn();
-        cout<<"Left Hot Pump On"<<endl;
-      }else{
-        leftTank.hotPump.turnOff();
-        cout<<"Left Hot Pump Off"<<endl;
-      }
-    }
+      case 'o':
+        if(!leftTank.hotPump.active){
+          leftTank.hotPump.turnOn();
+          cout<<"Left Hot Pump On"<<endl;
+        }else{
+          leftTank.hotPump.turnOff();
+          cout<<"Left Hot Pump Off"<<endl;
+        }
+        break;
 
-    if(waitKey(0)==(int)'p')
-    {
-      if(!leftTank.coldPump.active){
-        leftTank.coldPump.turnOn();
-        cout<<"Left Cold Pump On"<<endl;
-      }else{
-        leftTank.coldPump.turnOff();
-        cout<<"Left Cold Pump Off"<<endl;
-      }
-    }
+      case 'p':
+        if(!leftTank.coldPump.active){
+          leftTank.coldPump.turnOn();
+          cout<<"Left Cold Pump On"<<endl;
+        }else{
+          leftTank.coldPump.turnOff();
+          cout<<"Left Cold Pump Off"<<endl;
+        }
+        break;
 
-//r
-    if(waitKey(0)==(int)'k')o
-    {
-      if(!rightTank.hotPump.active){
-        rightTank.hotPump.turnOn();
-        cout<<"Right Hot Pump On"<<endl;
-      }else{
-        rightTank.hotPump.turnOff();
-        cout<<"Right Hot Pump Off"<<endl;
-      }
-    }
-//f
-    if(waitKey(0)==(int)'l')
-    {
-      if(!rightTank.coldPump.active){
-        rightTank.coldPump.turnOn();
-        cout<<"Right Hot Pump On"<<endl;
-      }else{
-        rightTank.coldPump.turnOff();
-        cout<<"Right Hot Pump Off"<<endl;
-      }
-    }
-    */
+      case 'k':
+        if(!rightTank.hotPump.active){
+          rightTank.hotPump.turnOn();
+          cout<<"Right Hot Pump On"<<endl;
+        }else{
+          rightTank.hotPump.turnOff();
+          cout<<"Right Hot Pump Off"<<endl;
+        }
+        break;
 
+      case 'l':
+        if(!rightTank.coldPump.active){
+          rightTank.coldPump.turnOn();
+          cout<<"Right Cold Pump On"<<endl;
+        }else{
+          rightTank.coldPump.turnOff();
+          cout<<"Right Cold Pump Off"<<endl;
+        }
+        break;
 
+    }
 
 
     /*
@@ -427,11 +422,11 @@ int main(int argc, char** argv)
     {
       vw.release();
       cap.release();
-
       logfile.close();
 
       break;
     }
+
   }
 
   return 0;
