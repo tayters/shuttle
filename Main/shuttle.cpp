@@ -41,6 +41,8 @@ using namespace std;
 #define FRAME_HEIGHT 720
 #define FRAME_WIDTH 1280
 
+#define FONT FONT_HERSHEY_PLAIN
+
 #define VIDEO_LENGTH 1200
 
 enum pumpcontrol {HOT_L, HOT_R, COLD_L, COLD_R, NONE};
@@ -178,7 +180,6 @@ string get_time_string(void)
 }
 
 
-
 int main(int argc, char** argv)
 {
   vector<vector<Point>> contours;
@@ -189,6 +190,8 @@ int main(int argc, char** argv)
   time_t now_time, start_time;
   double time_elapsed, min_area = 700;
   int key = 0, thresh_value = 200;
+  string hstring;
+  
 
   /*Setup Tanks pumps and thermocouples */
   wiringPiSetup();
@@ -204,7 +207,7 @@ int main(int argc, char** argv)
   time(&start_time);
   cout << "Start time: " + get_time_string() << endl;
 
-  //Setup arena
+  //Setup arena and info
   Rect arena = Rect(Point(30,170),Size(1130,540));
   Rect arena_left = Rect(arena.tl(), Size(arena.width*0.5, arena.height));
   Point arena_centre = (arena.br() + arena.tl()) * 0.5;
@@ -214,25 +217,31 @@ int main(int argc, char** argv)
   // Setup videocapture
   string vidfilepath = "/home/pi/Videos/";
   string vidfilename = generate_filename(start_time);
-  VideoWriter vw((vidfilepath + vidfilename + ".mp4"), VideoWriter::fourcc('m','p','4','v'),
-                  10, Size(FRAME_WIDTH, FRAME_HEIGHT));
+  VideoWriter vw((vidfilepath + vidfilename + ".mp4"), 
+                  VideoWriter::fourcc('m','p','4','v'), 10, 
+                  Size(FRAME_WIDTH, FRAME_HEIGHT));
 
   //Open logfile for writing to
   ofstream logfile;
+  hstring = "Date Time X Y RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold";
   logfile.open(vidfilepath + vidfilename + "_log.txt");
-  logfile << "Date Time Xpos Ypos RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold" <<endl;
+  logfile << hstring << endl; 
+  
 
-  /*Setup Hilook IPcamera (substream /101), will need to be changed depending on network*/
-  string vidAddress = "rtsp://admin:Snapper1@10.45.100.72:554/Streaming/Channels/101";
+  //Setup Hilook IPcamera (substream /101), will need to be changed depending on 
+  //network
+  string vidAddress = 
+  "rtsp://admin:Snapper1@10.45.100.72:554/Streaming/Channels/101";
   //Start video stream
   VideoCapture cap(vidAddress);
 
   Ptr<BackgroundSubtractor> pBackSub;
   Mat frame, fgMask;
   //pBackSub = createBackgroundSubtractorMOG2();
+  
   for(int i = 0; i<10; i++)
   {
-  cap >> fgMask ;
+    cap >> fgMask ;
   }
   //imwrite("test.png",fgMask);
 
@@ -273,35 +282,33 @@ int main(int argc, char** argv)
 
     p = arena.tl();
 
-    //Show x,y coordinates
+    //Show x,y coordinates, display time, display coordinates
     rectangle(src, Rect(Point(0,0), Size(300,75)), BLACK, FILLED);
-    //Display time
-    putText(src, get_time_string(), Point(10, 15), FONT_HERSHEY_PLAIN, 1, WHITE,
+    putText(src, get_time_string(), Point(10, 15), FONT, 1, WHITE,
             1, 1);
-    //Display coordinates
     putText(src, "x:"+to_string(p.x)+" y:"+to_string(p.y), Point(10, 30),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+            FONT, 1, WHITE, 1, 1);
     //Left or right chamber
     putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"), Point(10, 45),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+            FONT, 1, WHITE, 1, 1);
     //Draw arenas
     rectangle(src, arena, BLUE, 2);
     rectangle(src, arena_left, BLUE, 2);
     rectangle(src, info_left, BLACK, FILLED);
     rectangle(src, info_right, BLACK, FILLED);
-    //Chamber temperatures
-    putText(src, "LEFT "+(leftTank.tC.deg_string)+" "+(midLeft.tC.deg_string), info_left.tl()+Point(10,15),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, leftTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_left.tl()+Point(10,30),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, leftTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", info_left.tl()+Point(10,45),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, "RIGHT "+(rightTank.tC.deg_string)+" "+(midRight.tC.deg_string), info_right.tl()+Point(10,15),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, rightTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", info_right.tl()+Point(10,30),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
-    putText(src, rightTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", info_right.tl()+Point(10,45),
-            FONT_HERSHEY_PLAIN, 1, WHITE, 1, 1);
+    //Chamber temperatures and pump activity
+    putText(src, "LEFT "+leftTank.tC.deg_string+" "+(midLeft.tC.deg_string), 
+            info_left.tl()+Point(10,15), FONT, 1, WHITE, 1, 1);
+    putText(src, leftTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF",
+            info_left.tl()+Point(10,30), FONT, 1, WHITE, 1, 1);
+    putText(src, leftTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF",
+            info_left.tl()+Point(10,45), FONT, 1, WHITE, 1, 1);
+    putText(src, "RIGHT "+rightTank.tC.deg_string+" "+midRight.tC.deg_string,
+            info_right.tl()+Point(10,15), FONT, 1, WHITE, 1, 1);
+    putText(src, rightTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF", 
+            info_right.tl()+Point(10,30), FONT, 1, WHITE, 1, 1);
+    putText(src, rightTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF", 
+            info_right.tl()+Point(10,45), FONT, 1, WHITE, 1, 1);
 
     // show image with the tracked object
     //imshow("frame", frame);
@@ -331,15 +338,17 @@ int main(int argc, char** argv)
         vw.open((vidfilepath + vidfilename + ".mp4"),
                 VideoWriter::fourcc('m','p','4','v'), 10,
                 Size(FRAME_WIDTH, FRAME_HEIGHT));
-        logfile << "Date Time Xpos Ypos RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold" <<endl;
+        logfile.close();
+        logfile.open(vidfilepath + vidfilename + "_log.txt");
+        logfile << hstring << endl; 
       }
 
-      logfile << get_time_string() + " " + to_string(p.x) + " " + to_string(p.y);
-      logfile << " " << rightTank.tC.deg_string << " " << midRight.tC.deg_string
-                  << " " << leftTank.tC.deg_string << " " << midLeft.tC.deg_string;
-      logfile << " " << rightTank.hotPump.active << " " << rightTank.coldPump.active
-                  << " " << leftTank.hotPump.active << " " << leftTank.coldPump.active
-                  << endl;
+      logfile << get_time_string()+" "+to_string(p.x)+" "+ to_string(p.y);
+      logfile <<" "<< rightTank.tC.deg_string<<" "<< midRight.tC.deg_string
+              <<" "<< leftTank.tC.deg_string <<" "<< midLeft.tC.deg_string
+              <<" "<<rightTank.hotPump.active<<" "<<rightTank.coldPump.active
+              <<" "<< leftTank.hotPump.active<<" "<<leftTank.coldPump.active
+              << endl;
 
       read_complete = false;
     }
@@ -385,9 +394,7 @@ int main(int argc, char** argv)
           cout<<"Right Cold Pump Off"<<endl;
         }
         break;
-
     }
-
 
     /*
     if(waitKey(1)==62)
