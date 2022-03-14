@@ -188,8 +188,9 @@ int main(int argc, char** argv)
   Rect boundrect;
   Point p;
   time_t now_time, start_time;
-  double time_elapsed, min_area = 700;
-  int key = 0, thresh_value = 200;
+  double time_elapsed, min_area = 200;
+  int key = 0, thresh_value = 50, canny1 = 100, canny2= 300;
+  int big_cont_index =0;
   string hstring;
   
 
@@ -236,14 +237,16 @@ int main(int argc, char** argv)
   VideoCapture cap(vidAddress);
 
   Ptr<BackgroundSubtractor> pBackSub;
-  Mat frame, fgMask;
-  //pBackSub = createBackgroundSubtractorMOG2();
+  Mat frame, mask, mask_crop, temp;
+  
   
   for(int i = 0; i<10; i++)
   {
-    cap >> fgMask ;
+    cap >> mask ;
   }
   //imwrite("test.png",fgMask);
+  //imshow("mask", mask);
+  mask_crop = mask(arena);
 
   for (;;)
   {
@@ -251,17 +254,16 @@ int main(int argc, char** argv)
     cap >> src;
     src_crop = src(arena);
 
-    //subtract(src,fgMask,frame);
+    subtract(mask_crop, src_crop, temp);
     //Grayscale
-    cvtColor(src_crop, gray, COLOR_BGR2GRAY);
+    cvtColor(temp, gray, COLOR_BGR2GRAY);
 
     //Threshold and invert
-    threshold(src_crop, thr, thresh_value, 255, THRESH_BINARY_INV);
-
+    threshold(gray, thr, thresh_value, 255, THRESH_BINARY);
+    
     // Run through canny function and find contours
-    /*
-    Canny(thr, can, 50, 150, 3 );
-    findContours(can, contours, hierarchy, RETR_TREE,
+    //Canny(thr, can, canny1, canny2, 3 );
+    findContours(thr, contours, hierarchy, RETR_TREE,
                   CHAIN_APPROX_SIMPLE, Point(0, 0));
 
     for(int i = 0; i < contours.size(); i++)
@@ -269,19 +271,17 @@ int main(int argc, char** argv)
       double area = contourArea(contours[i]);
 
       if(area > min_area)
-      {
-        drawContours(src, contours, i, ORANGE, 2, 8, hierarchy, 0, arena.tl());
-        boundrect = boundingRect(contours[i]);
-        p = (boundrect.br() + boundrect.tl())*0.5;
-        circle(src_crop, p, 5, RED, -1);
-        rectangle(src_crop, boundrect.tl(), boundrect.br(), GREEN, 2 );
-        break;
-      }
+        big_cont_index = i;
+      
     }
-    */
-
-    p = arena.tl();
-
+    
+    drawContours(src_crop, contours, big_cont_index, ORANGE, 2, 8, hierarchy, 0, Point(0,0));
+    boundrect = boundingRect(contours[big_cont_index]);
+    p = (boundrect.br() + boundrect.tl())*0.5;
+    circle(src_crop, p, 5, RED, -1);
+    rectangle(src_crop, boundrect.tl(), boundrect.br(), GREEN, 2 );
+  
+    
     //Show x,y coordinates, display time, display coordinates
     rectangle(src, Rect(Point(0,0), Size(300,75)), BLACK, FILLED);
     putText(src, get_time_string(), Point(10, 15), FONT, 1, WHITE,
@@ -289,7 +289,7 @@ int main(int argc, char** argv)
     putText(src, "x:"+to_string(p.x)+" y:"+to_string(p.y), Point(10, 30),
             FONT, 1, WHITE, 1, 1);
     //Left or right chamber
-    putText(src, ((p.x > arena.width*0.5)?"LEFT":"RIGHT"), Point(10, 45),
+    putText(src, ((p.x > arena.width*0.5)?"RIGHT":"LEFT"), Point(10, 45),
             FONT, 1, WHITE, 1, 1);
     //Draw arenas
     rectangle(src, arena, BLUE, 2);
@@ -311,12 +311,17 @@ int main(int argc, char** argv)
             info_right.tl()+Point(10,45), FONT, 1, WHITE, 1, 1);
 
     // show image with the tracked object
-    //imshow("frame", frame);
-    //imshow("mask", fgMask);
-    //imshow("THRESH", thr);
+    //imshow("temp", temp);
+    //imshow("can", can);
+    //imshow("src_crop", src_crop);
+    
+    imshow("THRESH", thr);
     //Create a window
     namedWindow("LIVE", 1);
+    
     imshow("LIVE", src);
+
+
 
     //Write video to file
     vw.write(src);
@@ -394,6 +399,39 @@ int main(int argc, char** argv)
           cout<<"Right Cold Pump Off"<<endl;
         }
         break;
+
+      case '.':
+        thresh_value += 2;
+        cout<<"Threshold value: "<<thresh_value<<endl;
+        break;
+
+      case ',':
+        thresh_value -= 2;
+        cout<<"Threshold value: "<<thresh_value<<endl;
+        break;
+
+      case 'm':
+        min_area++;
+        cout<<"Min area: "<<min_area<<endl;
+        break;    
+
+      case 'n':
+        min_area--;
+        cout<<"Min area: "<<min_area<<endl;
+        break;    
+
+      case 'c':
+        canny1++;
+        cout<<"canny1: "<<canny1<<endl;
+        break;    
+
+      case 'v':
+        canny1--;
+        cout<<"canny1: "<<canny1<<endl;
+        break;   
+      
+
+
     }
 
     /*
