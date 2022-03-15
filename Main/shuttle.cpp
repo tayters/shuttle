@@ -18,6 +18,7 @@
 #include <unistd.h>
 #include <thread>
 #include <wiringPi.h>
+#include <vector>
 
 using namespace cv;
 using namespace std;
@@ -37,9 +38,13 @@ using namespace std;
 #define BLUE Scalar(255,0,0)
 #define RED Scalar(0,0,255)
 #define ORANGE Scalar(0,165,255)
+#define RED2 Scalar(0,20,255)
 
 #define FRAME_HEIGHT 720
 #define FRAME_WIDTH 1280
+
+#define TRAIL_SIZE 200
+
 
 #define FONT FONT_HERSHEY_PLAIN
 
@@ -194,14 +199,14 @@ int main(int argc, char** argv)
   string hstring;
   
 
-  /*Setup Tanks pumps and thermocouples */
+  //Setup Tanks pumps and thermocouples 
   wiringPiSetup();
   Tank rightTank(DEVICE_ADD_1, HOT_R, COLD_R);
   Tank leftTank(DEVICE_ADD_2, HOT_L, COLD_L);
   Tank midRight(DEVICE_ADD_3, NONE, NONE);
   Tank midLeft(DEVICE_ADD_0, NONE, NONE);
 
-  /*start temperature reading thread */
+  //start temperature reading thread
   thread th1(read_thr, &leftTank, &rightTank, &midRight, &midLeft);
 
   //Get start time
@@ -237,9 +242,11 @@ int main(int argc, char** argv)
   VideoCapture cap(vidAddress);
 
   Ptr<BackgroundSubtractor> pBackSub;
-  Mat frame, mask, mask_crop, temp;
+  pBackSub = createBackgroundSubtractorKNN();
+
+  Mat frame, mask, mask_crop, temp, fgmask;
   
-  
+/*    
   for(int i = 0; i<10; i++)
   {
     cap >> mask ;
@@ -247,6 +254,10 @@ int main(int argc, char** argv)
   //imwrite("test.png",fgMask);
   //imshow("mask", mask);
   mask_crop = mask(arena);
+  */
+
+  //vector<Point> points;
+  //points.assign(TRAIL_SIZE, Point(0,0));
 
   for (;;)
   {
@@ -254,16 +265,18 @@ int main(int argc, char** argv)
     cap >> src;
     src_crop = src(arena);
 
-    subtract(mask_crop, src_crop, temp);
-    //Grayscale
-    cvtColor(temp, gray, COLOR_BGR2GRAY);
+     //update the background model
+    pBackSub->apply(src_crop, fgmask);
 
+    //subtract(mask_crop, src_crop, temp);
+    //Grayscale
+    //cvtColor(fgmask, gray, COLOR_BGR2GRAY);
     //Threshold and invert
-    threshold(gray, thr, thresh_value, 255, THRESH_BINARY);
-    
+    //threshold(fgmask, thr, thresh_value, 255, THRESH_BINARY);
+  
     // Run through canny function and find contours
     //Canny(thr, can, canny1, canny2, 3 );
-    findContours(thr, contours, hierarchy, RETR_TREE,
+    findContours(fgmask, contours, hierarchy, RETR_TREE,
                   CHAIN_APPROX_SIMPLE, Point(0, 0));
 
     for(int i = 0; i < contours.size(); i++)
@@ -274,11 +287,22 @@ int main(int argc, char** argv)
         big_cont_index = i;
       
     }
-    
+        
     drawContours(src_crop, contours, big_cont_index, ORANGE, 2, 8, hierarchy, 0, Point(0,0));
     boundrect = boundingRect(contours[big_cont_index]);
     p = (boundrect.br() + boundrect.tl())*0.5;
+    //points.insert(points.begin(), p);
+    //points.pop_back();
     circle(src_crop, p, 5, RED, -1);
+    
+    /*
+    for (int i = 1; i < points.size(); i++) 
+    {
+      circle(src_crop, points[i], 3, Scalar(0,0,(255-i)), -1);
+    } 
+    */
+    
+
     rectangle(src_crop, boundrect.tl(), boundrect.br(), GREEN, 2 );
   
     
@@ -314,8 +338,9 @@ int main(int argc, char** argv)
     //imshow("temp", temp);
     //imshow("can", can);
     //imshow("src_crop", src_crop);
+    //imshow("fgmask", fgmask);
     
-    imshow("THRESH", thr);
+    //imshow("THRESH", thr);
     //Create a window
     namedWindow("LIVE", 1);
     
@@ -399,7 +424,7 @@ int main(int argc, char** argv)
           cout<<"Right Cold Pump Off"<<endl;
         }
         break;
-
+      /*
       case '.':
         thresh_value += 2;
         cout<<"Threshold value: "<<thresh_value<<endl;
@@ -409,7 +434,7 @@ int main(int argc, char** argv)
         thresh_value -= 2;
         cout<<"Threshold value: "<<thresh_value<<endl;
         break;
-
+      */
       case 'm':
         min_area++;
         cout<<"Min area: "<<min_area<<endl;
@@ -420,18 +445,7 @@ int main(int argc, char** argv)
         cout<<"Min area: "<<min_area<<endl;
         break;    
 
-      case 'c':
-        canny1++;
-        cout<<"canny1: "<<canny1<<endl;
-        break;    
-
-      case 'v':
-        canny1--;
-        cout<<"canny1: "<<canny1<<endl;
-        break;   
       
-
-
     }
 
     /*
