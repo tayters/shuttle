@@ -49,6 +49,8 @@ wiringPi.h
 -
 vector
 -
+chrono
+-
 
 /usr/local/include/opencv4/opencv2/calib3d.hpp
 opencv2/core.hpp
