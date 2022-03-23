@@ -1,0 +1,2 @@
+/usr/bin/ar qc libshuttle_util.a  CMakeFiles/shuttle_util.dir/shuttle_util.cpp.o
+/usr/bin/ranlib libshuttle_util.a

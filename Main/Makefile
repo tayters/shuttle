@@ -123,6 +123,19 @@ shuttle/fast:
 	$(MAKE) -f CMakeFiles/shuttle.dir/build.make CMakeFiles/shuttle.dir/build
 .PHONY : shuttle/fast
 
+#=============================================================================
+# Target rules for targets named shuttle_util
+
+# Build rule for target.
+shuttle_util: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 shuttle_util
+.PHONY : shuttle_util
+
+# fast build rule for target.
+shuttle_util/fast:
+	$(MAKE) -f CMakeFiles/shuttle_util.dir/build.make CMakeFiles/shuttle_util.dir/build
+.PHONY : shuttle_util/fast
+
 shuttle.o: shuttle.cpp.o
 
 .PHONY : shuttle.o
@@ -150,6 +163,33 @@ shuttle.cpp.s:
 	$(MAKE) -f CMakeFiles/shuttle.dir/build.make CMakeFiles/shuttle.dir/shuttle.cpp.s
 .PHONY : shuttle.cpp.s
 
+shuttle_util.o: shuttle_util.cpp.o
+
+.PHONY : shuttle_util.o
+
+# target to build an object file
+shuttle_util.cpp.o:
+	$(MAKE) -f CMakeFiles/shuttle_util.dir/build.make CMakeFiles/shuttle_util.dir/shuttle_util.cpp.o
+.PHONY : shuttle_util.cpp.o
+
+shuttle_util.i: shuttle_util.cpp.i
+
+.PHONY : shuttle_util.i
+
+# target to preprocess a source file
+shuttle_util.cpp.i:
+	$(MAKE) -f CMakeFiles/shuttle_util.dir/build.make CMakeFiles/shuttle_util.dir/shuttle_util.cpp.i
+.PHONY : shuttle_util.cpp.i
+
+shuttle_util.s: shuttle_util.cpp.s
+
+.PHONY : shuttle_util.s
+
+# target to generate assembly for a file
+shuttle_util.cpp.s:
+	$(MAKE) -f CMakeFiles/shuttle_util.dir/build.make CMakeFiles/shuttle_util.dir/shuttle_util.cpp.s
+.PHONY : shuttle_util.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -157,11 +197,15 @@ help:
 	@echo "... clean"
 	@echo "... depend"
 	@echo "... rebuild_cache"
-	@echo "... shuttle"
 	@echo "... edit_cache"
+	@echo "... shuttle"
+	@echo "... shuttle_util"
 	@echo "... shuttle.o"
 	@echo "... shuttle.i"
 	@echo "... shuttle.s"
+	@echo "... shuttle_util.o"
+	@echo "... shuttle_util.i"
+	@echo "... shuttle_util.s"
 .PHONY : help
 
 

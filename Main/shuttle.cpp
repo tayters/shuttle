@@ -1,3 +1,4 @@
+// shuttle.cpp
 #include <linux/i2c-dev.h>
 #include <i2c/smbus.h>
 #include <stdio.h>
@@ -19,7 +20,7 @@
 #include <thread>
 #include <wiringPi.h>
 #include <vector>
-#include <chrono>
+#include "shuttle_util.h"
 
 using namespace cv;
 using namespace std;
@@ -46,105 +47,19 @@ using namespace std;
 
 #define TRAIL_SIZE 200
 
-
 #define FONT FONT_HERSHEY_PLAIN
 
 #define VIDEO_LENGTH 1200
 
-enum pumpcontrol {COLD_L, COLD_R, HOT_L, HOT_R, NONE};
+#define COLD_L 0
+#define COLD_R 1
+#define HOT_L 2
+#define HOT_R 4
+#define NONE 5
+
 bool read_complete = true;
 
-class Thermocouple
-{
-public:
-  int fd;
-  double deg;
-  string deg_string = "0";
-
-  //constructor
-  Thermocouple(int addr)
-  {
-    //open i2cdevice
-    if ((fd = open("/dev/i2c-1", O_RDWR)) < 0)
-    cout << strerror (errno) << endl;
-
-    if (ioctl (fd, I2C_SLAVE, addr) < 0)
-    cout << strerror (errno) << endl;
-  }
-
-  void update()
-  {
-    static uint8_t buf[READ_BUF_LENGTH];
-    static int READ_CMD[1] = {'R'};
-
-    write(fd, READ_CMD, 1);
-    usleep(READ_DELAY);
-    read(fd, buf, READ_BUF_LENGTH);
-
-    deg_string = (char*)buf;
-    deg_string.erase(0,1);
-    deg = stod(deg_string);
-  }
-};
-
-class Pump
-{
-public:
-  bool active;
-  pumpcontrol outpin;
-
-  //Constructor
-  Pump(pumpcontrol p)
-  {
-    if(p != NONE)
-    {
-      outpin = p;
-      pinMode(outpin, OUTPUT);
-      digitalWrite(outpin, LOW);
-      active = false;
-    }
-  }
-
-  void turnOn()
-  {
-    if(!active)
-    {
-      digitalWrite(outpin, HIGH);
-      active = true;
-    }
-  }
-
-  void turnOff()
-  {
-    if(active)
-    {
-      digitalWrite(outpin, LOW);
-      active = false;
-    }
-  }
-};
-
-class Tank
-{
-public:
-  Thermocouple tC;
-  Pump hotPump, coldPump;
-
-  //Constructor
-  Tank(int addr, pumpcontrol h, pumpcontrol c)
-  : tC(addr), hotPump(h), coldPump(c)
-  {
-  }
-
-  //Destructor
-  ~Tank()
-  {
-    hotPump.turnOff();
-    coldPump.turnOff();
-  }
-};
-
-/*Separate thread for reading temperatures*/
+//Separate thread for reading temperatures
 void read_thr(Tank *t1, Tank *t2, Tank *t3, Tank *t4)
 {
   for(;;)
@@ -157,6 +72,7 @@ void read_thr(Tank *t1, Tank *t2, Tank *t3, Tank *t4)
   }
 }
 
+//Generate filename string based on current time
 string generate_filename(time_t in_time)
 {
   struct tm * time_struct;
@@ -170,6 +86,7 @@ string generate_filename(time_t in_time)
   return out_str;
 }
 
+//Get string of surrent time
 string get_time_string(void)
 {
     time_t rawtime;
@@ -185,27 +102,26 @@ string get_time_string(void)
     return out_str;
 }
 
-
+//Main
 int main(int argc, char** argv)
 {
   vector<vector<Point>> contours;
   vector<Vec4i> hierarchy;
-  Mat src, src_crop, thr, gray, can;
+  Mat src, src_crop, thr, gray, can, fgmask;
   Rect boundrect;
   static Point p;
   time_t now_time, start_time, control_time;
   double time_elapsed,control_time_elapsed, min_area = 150;
-  int key = 0, thresh_value = 50, canny1 = 100, canny2= 300;
+  int key = 0;
   int big_cont_index =0;
   string hstring;
-
 
   //Setup Tanks pumps and thermocouples
   wiringPiSetup();
   Tank leftTank(DEVICE_ADD_1, HOT_L, COLD_L);
   Tank rightTank(DEVICE_ADD_0, HOT_R, COLD_R);
+    Tank coldTank(DEVICE_ADD_2, NONE, NONE);
   Tank hotTank(DEVICE_ADD_3, NONE, NONE);
-  Tank coldTank(DEVICE_ADD_2, NONE, NONE);
 
   //start temperature reading thread
   thread th1(read_thr, &leftTank, &rightTank, &hotTank, &coldTank);
@@ -243,12 +159,11 @@ int main(int argc, char** argv)
   //Start video stream
   VideoCapture cap(vidAddress);
 
+  //Init Background subtractor
   Ptr<BackgroundSubtractor> pBackSub;
   pBackSub = createBackgroundSubtractorKNN();
 
-  Mat frame, mask, mask_crop, temp, fgmask;
-
-
+  
   //vector<Point> points;
   //points.assign(TRAIL_SIZE, Point(0,0));
 
@@ -259,24 +174,16 @@ int main(int argc, char** argv)
   {
     //Get frame from the video and create cropped area
     cap >> src;
-
     src_crop = src(arena);
     rectangle(src_crop, Rect(Point((arena.width/2)-40,190), Size(80,80)), WHITE,
               FILLED);
 
      //update the background model
     pBackSub->apply(src_crop, fgmask);
-
-    //subtract(mask_crop, src_crop, temp);
-    //Grayscale
-    //cvtColor(fgmask, gray, COLOR_BGR2GRAY);
-    //Threshold and invert
-    //threshold(fgmask, thr, thresh_value, 255, THRESH_BINARY);
-
-    // Run through canny function and find contours
-    //Canny(thr, can, canny1, canny2, 3 );
-    findContours(fgmask, contours, hierarchy, RETR_TREE,
-                  CHAIN_APPROX_SIMPLE, Point(0, 0));
+    
+    //find contours
+    findContours(fgmask, contours, hierarchy, RETR_TREE, CHAIN_APPROX_SIMPLE,
+                 Point(0, 0));
 
     for(int i = 0; i < contours.size(); i++)
     {
@@ -287,16 +194,15 @@ int main(int argc, char** argv)
         big_cont_index = i;
         found = true;
       }
-
     }
 
     if(found)
     {
-      drawContours(src_crop, contours, big_cont_index, ORANGE, 2, 8, hierarchy, 0, Point(0,0));
-
+      drawContours(src_crop, contours, big_cont_index, ORANGE, 2, 8, hierarchy, 
+                   0, Point(0,0));
       Moments m = moments(contours[big_cont_index],true);
       p = Point(m.m10/m.m00, m.m01/m.m00);
-      circle(src_crop, p, 5, RED, -1);
+      
 
       // boundrect = boundingRect(contours[big_cont_index]);
       // rectangle(src_crop, boundrect.tl(), boundrect.br(), GREEN, 2 );
@@ -310,15 +216,11 @@ int main(int argc, char** argv)
         circle(src_crop, points[i], 3, Scalar(0,0,(255-i)), -1);
       }
       */
-
-
       found = false;
     }
-    else
-    {
-        circle(src_crop, p, 5, RED, -1);
-    }
-
+    
+    //Mark psosition (found or not found)
+    circle(src_crop, p, 5, RED, -1);    
 
     //Show x,y coordinates, display time, display coordinates
     rectangle(src, Rect(Point(0,0), Size(300,100)), BLACK, FILLED);
@@ -333,7 +235,6 @@ int main(int argc, char** argv)
             FONT, 1, WHITE, 1, 1);
     putText(src, "HOT RES: "+hotTank.tC.deg_string, Point(10, 75),
             FONT, 1, WHITE, 1, 1);
-
 
     //Draw arenas
     rectangle(src, arena, BLUE, 2);
@@ -354,21 +255,11 @@ int main(int argc, char** argv)
     putText(src, rightTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF",
             info_right.tl()+Point(10,45), FONT, 1, WHITE, 1, 1);
 
-    // show image with the tracked object
-    //imshow("temp", temp);
-    //imshow("can", can);
+    
     //imshow("src_crop", src_crop);
     //imshow("fgmask", fgmask);
-
-    //imshow("THRESH", thr);
-    //Create a window
-
-
     namedWindow("LIVE", 1);
-
     imshow("LIVE", src);
-
-
 
     //Write video to file
     vw.write(src);
@@ -380,8 +271,6 @@ int main(int argc, char** argv)
       time(&now_time);
       time_elapsed = difftime(now_time, start_time);
       control_time_elapsed = difftime(now_time, control_time);
-      //cout << time_elapsed << endl;
-
 
       //Update control settings every ~x seconds
       if(control_time_elapsed > 60)
@@ -413,10 +302,6 @@ int main(int argc, char** argv)
 
       read_complete = false;
     }
-
-
-    
-
 
     switch((char)waitKey(1))
     {
@@ -459,17 +344,7 @@ int main(int argc, char** argv)
           cout<<"Right Cold Pump Off"<<endl;
         }
         break;
-      /*
-      case '.':
-        thresh_value += 2;
-        cout<<"Threshold value: "<<thresh_value<<endl;
-        break;
-
-      case ',':
-        thresh_value -= 2;
-        cout<<"Threshold value: "<<thresh_value<<endl;
-        break;
-      */
+      
       case 'm':
         min_area++;
         cout<<"Min area: "<<min_area<<endl;
@@ -479,36 +354,8 @@ int main(int argc, char** argv)
         min_area--;
         cout<<"Min area: "<<min_area<<endl;
         break;
-
-
     }
-
-    /*
-    if(waitKey(1)==62)
-    {
-      thresh_value++;
-      cout<<"Threshold value: "<<thresh_value<<endl;
-    }
-
-    if(waitKey(1)==60)
-    {
-      thresh_value--;
-      cout<<"Threshold value: "<<thresh_value<<endl;
-    }
-
-    if(waitKey(1)==107)
-    {
-      min_area++;
-      cout<<"Min area: "<<min_area<<endl;
-    }
-
-    if(waitKey(1)==108)
-    {
-      min_area--;
-      cout<<"Min area: "<<min_area<<endl;
-    }
-    */
-
+    
     //quit on ESC button
     if (waitKey(1) == 27)
     {
