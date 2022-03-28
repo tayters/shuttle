@@ -154,12 +154,12 @@ void update_control(Mode mode, Tank *lt, Tank *rt, MiniPID *pidl, MiniPID *pidr)
     if(dutyr > 0.1)
     {
       rcount = abs((int)(control_count*dutyr));
-      lt->hotPump.turnOn();
+      rt->hotPump.turnOn();
     }
     else if(dutyr < -0.1)
     {
       rcount = 2*abs((int)(control_count*dutyr));
-      lt->coldPump.turnOn();
+      rt->coldPump.turnOn();
     }
 
       count = 0;
