@@ -6,5 +6,6 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -pthread")
 add_executable( shuttle shuttle.cpp )
 find_library(WIRINGPI_LIBRARIES NAMES wiringPi)
 add_library( shuttle_util STATIC shuttle_util.cpp )
-target_link_libraries( shuttle ${OpenCV_LIBS} wiringPi shuttle_util)
+add_library( miniPID STATIC MiniPID.cpp )
+target_link_libraries( shuttle ${OpenCV_LIBS} wiringPi shuttle_util miniPID)
 

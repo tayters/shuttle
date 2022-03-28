@@ -114,6 +114,7 @@ shuttle: /usr/local/lib/libopencv_xfeatures2d.so.4.5.4
 shuttle: /usr/local/lib/libopencv_xobjdetect.so.4.5.4
 shuttle: /usr/local/lib/libopencv_xphoto.so.4.5.4
 shuttle: libshuttle_util.a
+shuttle: libminiPID.a
 shuttle: /usr/local/lib/libopencv_shape.so.4.5.4
 shuttle: /usr/local/lib/libopencv_highgui.so.4.5.4
 shuttle: /usr/local/lib/libopencv_datasets.so.4.5.4

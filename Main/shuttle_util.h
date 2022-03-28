@@ -32,7 +32,7 @@ class Thermocouple
 {
 public:
   int fd;
-  double deg;
+  double deg = 0, deg_prev = 0;
   string deg_string = "0";
 
   //constructor

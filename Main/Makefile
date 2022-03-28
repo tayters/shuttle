@@ -111,6 +111,19 @@ depend:
 .PHONY : depend
 
 #=============================================================================
+# Target rules for targets named miniPID
+
+# Build rule for target.
+miniPID: cmake_check_build_system
+	$(MAKE) -f CMakeFiles/Makefile2 miniPID
+.PHONY : miniPID
+
+# fast build rule for target.
+miniPID/fast:
+	$(MAKE) -f CMakeFiles/miniPID.dir/build.make CMakeFiles/miniPID.dir/build
+.PHONY : miniPID/fast
+
+#=============================================================================
 # Target rules for targets named shuttle
 
 # Build rule for target.
@@ -135,6 +148,33 @@ shuttle_util: cmake_check_build_system
 shuttle_util/fast:
 	$(MAKE) -f CMakeFiles/shuttle_util.dir/build.make CMakeFiles/shuttle_util.dir/build
 .PHONY : shuttle_util/fast
+
+MiniPID.o: MiniPID.cpp.o
+
+.PHONY : MiniPID.o
+
+# target to build an object file
+MiniPID.cpp.o:
+	$(MAKE) -f CMakeFiles/miniPID.dir/build.make CMakeFiles/miniPID.dir/MiniPID.cpp.o
+.PHONY : MiniPID.cpp.o
+
+MiniPID.i: MiniPID.cpp.i
+
+.PHONY : MiniPID.i
+
+# target to preprocess a source file
+MiniPID.cpp.i:
+	$(MAKE) -f CMakeFiles/miniPID.dir/build.make CMakeFiles/miniPID.dir/MiniPID.cpp.i
+.PHONY : MiniPID.cpp.i
+
+MiniPID.s: MiniPID.cpp.s
+
+.PHONY : MiniPID.s
+
+# target to generate assembly for a file
+MiniPID.cpp.s:
+	$(MAKE) -f CMakeFiles/miniPID.dir/build.make CMakeFiles/miniPID.dir/MiniPID.cpp.s
+.PHONY : MiniPID.cpp.s
 
 shuttle.o: shuttle.cpp.o
 
@@ -198,8 +238,12 @@ help:
 	@echo "... depend"
 	@echo "... rebuild_cache"
 	@echo "... edit_cache"
+	@echo "... miniPID"
 	@echo "... shuttle"
 	@echo "... shuttle_util"
+	@echo "... MiniPID.o"
+	@echo "... MiniPID.i"
+	@echo "... MiniPID.s"
 	@echo "... shuttle.o"
 	@echo "... shuttle.i"
 	@echo "... shuttle.s"

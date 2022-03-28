@@ -1,0 +1,20 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/pi/workspace/shuttle/Main/MiniPID.cpp
+stdio.h
+-
+math.h
+-
+sys/time.h
+-
+MiniPID.h
+/home/pi/workspace/shuttle/Main/MiniPID.h
+
+/home/pi/workspace/shuttle/Main/MiniPID.h
+

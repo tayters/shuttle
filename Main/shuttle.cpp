@@ -21,6 +21,7 @@
 #include <wiringPi.h>
 #include <vector>
 #include "shuttle_util.h"
+#include "MiniPID.h"
 
 using namespace cv;
 using namespace std;
@@ -47,6 +48,8 @@ using namespace std;
 
 #define TRAIL_SIZE 200
 
+#define RATE 0.00833
+
 #define FONT FONT_HERSHEY_PLAIN
 
 #define VIDEO_LENGTH 1200
@@ -54,10 +57,12 @@ using namespace std;
 #define COLD_L 0
 #define COLD_R 1
 #define HOT_L 2
-#define HOT_R 4
-#define NONE 5
+#define HOT_R 3
+#define NONE 4
 
+enum Mode {Heat, Cool, Top, Bottom};
 bool read_complete = true;
+double duty = 0.1;
 
 //Separate thread for reading temperatures
 void read_thr(Tank *t1, Tank *t2, Tank *t3, Tank *t4)
@@ -102,6 +107,84 @@ string get_time_string(void)
     return out_str;
 }
 
+//Heating/cooling control 
+void update_control(Mode mode, Tank *lt, Tank *rt, MiniPID *pidl, MiniPID *pidr)
+{ 
+  static double dutyl, dutyr;
+  static double targetl = 20.2, targetr = 18.3;
+  static int count, control_count = 20, lcount, rcount, tar_count;
+
+  //Update control settings every control_count*2.8 seconds
+  if(count >= control_count)
+  {
+    cout <<get_time_string()<<"  Time up"<<endl;  
+
+    if(tar_count >= 6)
+    {
+      //targetl += 0.1;
+      //targetr += 0.1;
+      tar_count = 0;
+    }
+    
+    cout<< "Left target: " << targetl<< endl;
+    cout<< "Right target: " << targetr<< endl;
+
+    //Update right chamber duty cycle   
+    dutyl = pidl->getOutput(lt->tC.deg, targetl);
+    cout << "Pid left output: " << dutyl <<endl;
+    //cout << "Left on count: " << lcount << endl;
+
+    if(dutyl > 0.1)
+    {
+      lcount = abs((int)(control_count*dutyl));
+      lt->hotPump.turnOn();
+    }
+    else if(dutyl < -0.1)
+    {
+      lcount = 2*abs((int)(control_count*dutyl));
+      lt->coldPump.turnOn();
+    }
+
+    //Update right chamber duty cycle    
+    dutyr = pidr->getOutput(rt->tC.deg, targetr);
+    cout << "Pid right output: " << dutyr <<endl;
+    //cout << "Left on count: " << lcount << endl;
+    
+    
+    if(dutyr > 0.1)
+    {
+      rcount = abs((int)(control_count*dutyr));
+      lt->hotPump.turnOn();
+    }
+    else if(dutyr < -0.1)
+    {
+      rcount = 2*abs((int)(control_count*dutyr));
+      lt->coldPump.turnOn();
+    }
+
+      count = 0;
+      tar_count++;
+  }
+
+  if(count == lcount)
+  {
+    //cout << get_time_string()<< " Turn off left pumps" << endl;
+    lt->hotPump.turnOff();
+    lt->coldPump.turnOff();
+  }
+
+  if(count == rcount)
+  {
+    //cout << get_time_string()<< " Turn off right pumps" << endl;
+    rt->hotPump.turnOff();
+    rt->coldPump.turnOff();
+  }
+
+ count++;
+
+}
+
+
 //Main
 int main(int argc, char** argv)
 {
@@ -111,7 +194,7 @@ int main(int argc, char** argv)
   Rect boundrect;
   static Point p;
   time_t now_time, start_time, control_time;
-  double time_elapsed,control_time_elapsed, min_area = 150;
+  double time_elapsed, control_time_elapsed, min_area = 150;
   int key = 0;
   int big_cont_index =0;
   string hstring;
@@ -120,7 +203,7 @@ int main(int argc, char** argv)
   wiringPiSetup();
   Tank leftTank(DEVICE_ADD_1, HOT_L, COLD_L);
   Tank rightTank(DEVICE_ADD_0, HOT_R, COLD_R);
-    Tank coldTank(DEVICE_ADD_2, NONE, NONE);
+  Tank coldTank(DEVICE_ADD_2, NONE, NONE);
   Tank hotTank(DEVICE_ADD_3, NONE, NONE);
 
   //start temperature reading thread
@@ -167,6 +250,12 @@ int main(int argc, char** argv)
   //vector<Point> points;
   //points.assign(TRAIL_SIZE, Point(0,0));
 
+  MiniPID pidl = MiniPID(2,0.1,0.1);
+  pidl.setOutputLimits(-1,1);
+  MiniPID pidr = MiniPID(2,0.1,0.1);
+  pidr.setOutputLimits(-1,1);
+
+  
   bool found = false;
   
   //MAIN LOOP*******************************************************************
@@ -219,7 +308,7 @@ int main(int argc, char** argv)
       found = false;
     }
     
-    //Mark psosition (found or not found)
+    //Mark position (found or not found)
     circle(src_crop, p, 5, RED, -1);    
 
     //Show x,y coordinates, display time, display coordinates
@@ -264,20 +353,19 @@ int main(int argc, char** argv)
     //Write video to file
     vw.write(src);
 
-    //After every temperature read
+    //After every temperature read (~2.8s)
     if(read_complete)
     {
       //Get time elapsed in seconds
       time(&now_time);
       time_elapsed = difftime(now_time, start_time);
-      control_time_elapsed = difftime(now_time, control_time);
+      
+      
+      update_control(Heat, &leftTank, &rightTank, &pidl, &pidr);
 
-      //Update control settings every ~x seconds
-      if(control_time_elapsed > 60)
-      {
-        time(&control_time);
-        cout <<get_time_string()<<"  Time up"<<endl;
-      }
+                
+
+      
 
       //New files
       if(time_elapsed > VIDEO_LENGTH)

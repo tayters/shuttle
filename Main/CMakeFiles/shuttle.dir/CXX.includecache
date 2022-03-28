@@ -6,6 +6,8 @@
 
 #IncludeRegexTransform: 
 
+/home/pi/workspace/shuttle/Main/MiniPID.h
+
 /home/pi/workspace/shuttle/Main/shuttle.cpp
 linux/i2c-dev.h
 -
@@ -51,6 +53,8 @@ vector
 -
 shuttle_util.h
 /home/pi/workspace/shuttle/Main/shuttle_util.h
+MiniPID.h
+/home/pi/workspace/shuttle/Main/MiniPID.h
 
 /home/pi/workspace/shuttle/Main/shuttle_util.h
 linux/i2c-dev.h
