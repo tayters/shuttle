@@ -107,77 +107,92 @@ string get_time_string(void)
     return out_str;
 }
 
+
+int median(vector<int> v)
+{
+    size_t n = v.size() / 2;
+    nth_element(v.begin(), v.begin()+n, v.end());
+    
+    return v[n];
+}
+
+
 //Heating/cooling control 
-void update_control(Mode mode, Tank *lt, Tank *rt, MiniPID *pidl, MiniPID *pidr)
+void update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh, MiniPID *pidc)
 { 
-  static double dutyl, dutyr;
-  static double targetl = 20.2, targetr = 18.3;
-  static int count, control_count = 20, lcount, rcount, tar_count;
+  static double dutyc, dutyh;
+  static double targeth = 15, targetc = 15, target_diff = 2;
+  static int count, control_count = 20, h_count, c_count, tar_count;
 
   //Update control settings every control_count*2.8 seconds
   if(count >= control_count)
   {
     cout <<get_time_string()<<"  Time up"<<endl;  
+    int x_median = median(x_vec);
+    cout << "x_median: "<<x_median<<"  "<<x_vec.size()<<endl;
 
     if(tar_count >= 6)
     {
-      //targetl += 0.1;
-      //targetr += 0.1;
+      if(targetc >= 15)
+      {
+        //targetc = 0.1;
+      }
+
+      targeth = ct->tC.deg + target_diff;
       tar_count = 0;
     }
     
-    cout<< "Left target: " << targetl<< endl;
-    cout<< "Right target: " << targetr<< endl;
+    cout<< "Hot target: " << targeth << endl;
+    cout<< "Cold target: " << targetc << endl;
 
-    //Update right chamber duty cycle   
-    dutyl = pidl->getOutput(lt->tC.deg, targetl);
-    cout << "Pid left output: " << dutyl <<endl;
-    //cout << "Left on count: " << lcount << endl;
+    //Update hot chamber duty cycle   
+    dutyh = pidh->getOutput(ht->tC.deg, targeth);
+    cout << "Pid hot output: " << dutyh <<endl;
+    //cout << "Hot on count: " << h_count << endl;
 
-    if(dutyl > 0.1)
+    if(dutyh > 0.1)
     {
-      lcount = abs((int)(control_count*dutyl));
-      lt->hotPump.turnOn();
+      h_count = abs((int)(control_count*dutyh));
+      ht->hotPump.turnOn();
     }
-    else if(dutyl < -0.1)
+    else if(dutyh < -0.1)
     {
-      lcount = 2*abs((int)(control_count*dutyl));
-      lt->coldPump.turnOn();
+      h_count = 2*abs((int)(control_count*dutyh));
+      ht->coldPump.turnOn();
     }
 
     //Update right chamber duty cycle    
-    dutyr = pidr->getOutput(rt->tC.deg, targetr);
-    cout << "Pid right output: " << dutyr <<endl;
-    //cout << "Left on count: " << lcount << endl;
+    dutyc = pidc->getOutput(ct->tC.deg, targetc);
+    cout << "Pid cold output: " << dutyc <<endl;
+    //cout << "Left on count: " << h_count << endl;
     
-    
-    if(dutyr > 0.1)
+    if(dutyc > 0.1)
     {
-      rcount = abs((int)(control_count*dutyr));
-      rt->hotPump.turnOn();
+      c_count = abs((int)(control_count*dutyc));
+      ct->hotPump.turnOn();
     }
-    else if(dutyr < -0.1)
+    else if(dutyc < -0.1)
     {
-      rcount = 2*abs((int)(control_count*dutyr));
-      rt->coldPump.turnOn();
+      c_count = 2*abs((int)(control_count*dutyc));
+      ct->coldPump.turnOn();
     }
 
       count = 0;
       tar_count++;
   }
 
-  if(count == lcount)
+  if(count == h_count)
   {
     //cout << get_time_string()<< " Turn off left pumps" << endl;
-    lt->hotPump.turnOff();
-    lt->coldPump.turnOff();
+    ht->hotPump.turnOff();
+    ht->coldPump.turnOff();
   }
 
-  if(count == rcount)
+  if(count == c_count)
   {
     //cout << get_time_string()<< " Turn off right pumps" << endl;
-    rt->hotPump.turnOff();
-    rt->coldPump.turnOff();
+    ct->hotPump.turnOff();
+    ct->coldPump.turnOff();
   }
 
  count++;
@@ -190,15 +205,16 @@ int main(int argc, char** argv)
 {
   vector<vector<Point>> contours;
   vector<Vec4i> hierarchy;
+  vector<int> x_vec(600,0);
   Mat src, src_crop, thr, gray, can, fgmask;
   Rect boundrect;
   static Point p;
   time_t now_time, start_time, control_time;
   double time_elapsed, control_time_elapsed, min_area = 150;
-  int key = 0;
-  int big_cont_index =0;
+  int key = 0, big_cont_index = 0;
   string hstring;
-
+  bool found = false;
+  
   //Setup Tanks pumps and thermocouples
   wiringPiSetup();
   Tank leftTank(DEVICE_ADD_1, HOT_L, COLD_L);
@@ -246,18 +262,12 @@ int main(int argc, char** argv)
   Ptr<BackgroundSubtractor> pBackSub;
   pBackSub = createBackgroundSubtractorKNN();
 
-  
-  //vector<Point> points;
-  //points.assign(TRAIL_SIZE, Point(0,0));
+  MiniPID pidh = MiniPID(2,0.1,0.1);
+  pidh.setOutputLimits(-1,1);
+  MiniPID pidc = MiniPID(2,0.1,0.1);
+  pidc.setOutputLimits(-1,1);
 
-  MiniPID pidl = MiniPID(2,0.1,0.1);
-  pidl.setOutputLimits(-1,1);
-  MiniPID pidr = MiniPID(2,0.1,0.1);
-  pidr.setOutputLimits(-1,1);
-
-  
-  bool found = false;
-  
+   
   //MAIN LOOP*******************************************************************
   for (;;)
   {
@@ -291,22 +301,12 @@ int main(int argc, char** argv)
                    0, Point(0,0));
       Moments m = moments(contours[big_cont_index],true);
       p = Point(m.m10/m.m00, m.m01/m.m00);
-      
-
-      // boundrect = boundingRect(contours[big_cont_index]);
-      // rectangle(src_crop, boundrect.tl(), boundrect.br(), GREEN, 2 );
-      // p = (boundrect.br() + boundrect.tl())*0.5;
-      // points.insert(points.begin(), p);
-      // points.pop_back();
-
-      /*
-      for (int i = 1; i < points.size(); i++)
-      {
-        circle(src_crop, points[i], 3, Scalar(0,0,(255-i)), -1);
-      }
-      */
+           
       found = false;
     }
+
+    x_vec.insert(x_vec.begin(), p.x);
+    x_vec.pop_back();
     
     //Mark position (found or not found)
     circle(src_crop, p, 5, RED, -1);    
@@ -331,13 +331,13 @@ int main(int argc, char** argv)
     rectangle(src, info_left, BLACK, FILLED);
     rectangle(src, info_right, BLACK, FILLED);
     //Chamber temperatures and pump activity
-    putText(src, "LEFT "+leftTank.tC.deg_string, info_left.tl()+Point(10,15),
+    putText(src, "LEFT "+leftTank.tC.deg_string+" (H)", info_left.tl()+Point(10,15),
             FONT, 1, WHITE, 1, 1);
     putText(src, leftTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF",
             info_left.tl()+Point(10,30), FONT, 1, WHITE, 1, 1);
     putText(src, leftTank.coldPump.active?"COLD PUMP ON":"COLD PUMP OFF",
             info_left.tl()+Point(10,45), FONT, 1, WHITE, 1, 1);
-    putText(src, "RIGHT "+rightTank.tC.deg_string, info_right.tl()+Point(10,15),
+    putText(src, "RIGHT "+rightTank.tC.deg_string+" (C)", info_right.tl()+Point(10,15),
             FONT, 1, WHITE, 1, 1);
     putText(src, rightTank.hotPump.active?"HOT PUMP ON":"HOT PUMP OFF",
             info_right.tl()+Point(10,30), FONT, 1, WHITE, 1, 1);
@@ -359,14 +359,9 @@ int main(int argc, char** argv)
       //Get time elapsed in seconds
       time(&now_time);
       time_elapsed = difftime(now_time, start_time);
-      
-      
-      update_control(Heat, &leftTank, &rightTank, &pidl, &pidr);
 
-                
-
+      update_control(x_vec, &leftTank, &rightTank, &pidh, &pidc);
       
-
       //New files
       if(time_elapsed > VIDEO_LENGTH)
       {
@@ -382,8 +377,8 @@ int main(int argc, char** argv)
       }
 
       logfile << get_time_string()+" "+to_string(p.x)+" "+ to_string(p.y);
-      logfile <<" "<< rightTank.tC.deg_string<<" "<< hotTank.tC.deg_string
-              <<" "<< leftTank.tC.deg_string <<" "<< coldTank.tC.deg_string
+      logfile <<" "<< rightTank.tC.deg_string<<" "<<hotTank.tC.deg_string
+              <<" "<< leftTank.tC.deg_string <<" "<<coldTank.tC.deg_string
               <<" "<<rightTank.hotPump.active<<" "<<rightTank.coldPump.active
               <<" "<< leftTank.hotPump.active<<" "<<leftTank.coldPump.active
               << endl;

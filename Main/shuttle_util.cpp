@@ -72,7 +72,7 @@ void Pump::turnOn()
 {
     if(!active)
     {
-        digitalWrite(outpin, HIGH);
+        //digitalWrite(outpin, HIGH);
         active = true;
     }
 }
