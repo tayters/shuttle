@@ -42,16 +42,10 @@ using namespace std;
 #define RED Scalar(0,0,255)
 #define ORANGE Scalar(0,165,255)
 #define RED2 Scalar(0,20,255)
+#define FONT FONT_HERSHEY_PLAIN
 
 #define FRAME_HEIGHT 720
 #define FRAME_WIDTH 1280
-
-#define TRAIL_SIZE 200
-
-#define RATE 0.00833
-
-#define FONT FONT_HERSHEY_PLAIN
-
 #define VIDEO_LENGTH 1200
 
 #define COLD_L 0
@@ -62,12 +56,8 @@ using namespace std;
 
 enum Mode {Start, Heat, Cool};
 string mode_str[] = {"Start", "Heat", "Cool"};
-
 string side_str[] = {"LEFT", "RIGHT"};
-
-//enum Side {LEFT, RIGHT, NONE};
 bool read_complete = true;
-double duty = 0.1;
 
 //Separate thread for reading temperatures
 void read_thr(Tank *t1, Tank *t2, Tank *t3, Tank *t4)
@@ -112,12 +102,11 @@ string get_time_string(void)
     return out_str;
 }
 
-
+//Calculate median of a vector (not exact)
 int median(vector<int> v)
 {
     size_t n = v.size() / 2;
     nth_element(v.begin(), v.begin()+n, v.end());
-    
     return v[n];
 }
 
@@ -132,145 +121,137 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
   static Side fish_pos = LEFT;
 
   //Update control settings every control_count*2.8 seconds 
-  if(count >= control_count)
-  {
-    //Get time
-    cout <<get_time_string();  
-    
-    //Get fish position
-    int x_median = median(x_vec);
-    fish_pos = ((x_median > 565)?RIGHT:LEFT);
-    cout << " x_median: "<<x_median<<"  "<<x_vec.size();
-    cout << " Fishpos =  " << side_str[fish_pos] ;
-
-
-    //FSM
-    switch(mode)
+    if(count >= control_count)
     {
-    /******************************/ 
-    case Start:
-      if(run)
-      {        
-        if(fish_pos == ht->side)
-          mode = Heat;
-        else if(fish_pos == ct->side)
-          mode = Cool;
-      }
-      else
-      {
-        targetc = 20;
-        targeth = 20;
-      }
-      break;
+        //Get time
+        cout <<get_time_string();  
+        
+        //Get fish position
+        int x_median = median(x_vec);
+        fish_pos = ((x_median > 565)?RIGHT:LEFT);
+        cout << " x_median: "<< x_median << endl;
+        cout << " Fishpos =  " << side_str[fish_pos];
 
-    /******************************/   
-    case Heat:
-      //Every 6min
-      if(tar_count >= 6)
-      {
-        if(targeth <= 25)
+        //FSM
+        switch(mode)
         {
-         targeth += 0.1;
-        }
-      targetc = ht->tC.deg - target_diff;
-      tar_count = 0;
-      }
-      
-      if(run)
-      {
-        if(fish_pos == ct->side)
-          mode = Cool;
-      }
-      else
-      {
-        mode = Start;
-      }
-      break;
-    /******************************/  
+        /**********************************************************************/ 
+        case Start:
+            if(run)
+            {        
+                if(fish_pos == ht->side)
+                    mode = Heat;
+                else if(fish_pos == ct->side)
+                    mode = Cool;
+            }
+            else
+            {
+                targeth = targetc = 20;
+            }
+            break;
 
-    case Cool:
-      //Every 6min
-      if(tar_count >= 6)
-      {
-        if(targetc >= 15)
+        /**********************************************************************/
+        case Heat:
+        //Every 6min
+            if(tar_count >= 6)
+            {
+                if(targeth <= 25)
+                {
+                    targeth += 0.1;
+                }
+
+                targetc = ht->tC.deg - target_diff;
+                tar_count = 0;
+            }
+        
+            if(run)
+            {
+                if(fish_pos == ct->side)
+                mode = Cool;
+            }
+            else
+            {
+                mode = Start;
+            }
+            break;
+        
+        /**********************************************************************/
+        case Cool:
+        //Every 6min
+            if(tar_count >= 6)
+            {
+                if(targetc >= 15)
+                {
+                    targetc -= 0.1;
+                }
+
+                targeth = ct->tC.deg + target_diff;
+                tar_count = 0;
+            }
+
+            if(run)
+            {
+                if(fish_pos == ht->side)
+                mode = Heat;
+            }
+            else
+            {
+                mode = Start;
+            }
+            break;
+        }
+
+        cout << " Mode:"<< mode_str[mode];
+        cout<< " Hot target:" << targeth;
+        cout<< " Cold target:" << targetc;
+
+        //Update hot chamber duty cycle   
+        dutyh = pidh->getOutput(ht->tC.deg, targeth);
+        cout << " Pid hot output:" << dutyh ;
+        
+        if(dutyh > 0.1)
         {
-         targetc -= 0.1;
+            h_count = abs((int)(control_count*dutyh));
+            ht->hotPump.turnOn();
+        }
+        else if(dutyh < -0.1)
+        {
+            h_count = 2*abs((int)(control_count*dutyh));
+            ht->coldPump.turnOn();
         }
 
-      targeth = ct->tC.deg + target_diff;
-      tar_count = 0;
-      }
+        //Update right chamber duty cycle    
+        dutyc = pidc->getOutput(ct->tC.deg, targetc);
+        cout << " Pid cold output: " << dutyc <<endl;
+          
+        if(dutyc > 0.1)
+        {
+            c_count = abs((int)(control_count*dutyc));
+            ct->hotPump.turnOn();
+        }
+        else if(dutyc < -0.1)
+        {
+            c_count = 2*abs((int)(control_count*dutyc));
+            ct->coldPump.turnOn();
+        }
 
-      if(run)
-      {
-        if(fish_pos == ht->side)
-          mode = Heat;
-      }
-      else
-      {
-        mode = Start;
-      }
-      break;
-    /******************************/   
+        count = 0;
+        tar_count++;
     }
-
-    cout << " Mode: "<<mode_str[mode];
-
-    cout<< " Hot target: " << targeth;
-    cout<< " Cold target: " << targetc;
-
-    //Update hot chamber duty cycle   
-    dutyh = pidh->getOutput(ht->tC.deg, targeth);
-    cout << " Pid hot output: " << dutyh ;
-    //cout << "Hot on count: " << h_count << endl;
-
-    if(dutyh > 0.1)
-    {
-      h_count = abs((int)(control_count*dutyh));
-      ht->hotPump.turnOn();
-    }
-    else if(dutyh < -0.1)
-    {
-      h_count = 2*abs((int)(control_count*dutyh));
-      ht->coldPump.turnOn();
-    }
-
-    //Update right chamber duty cycle    
-    dutyc = pidc->getOutput(ct->tC.deg, targetc);
-    cout << " Pid cold output: " << dutyc <<endl;
-    //cout << "Left on count: " << h_count << endl;
-    
-    if(dutyc > 0.1)
-    {
-      c_count = abs((int)(control_count*dutyc));
-      ct->hotPump.turnOn();
-    }
-    else if(dutyc < -0.1)
-    {
-      c_count = 2*abs((int)(control_count*dutyc));
-      ct->coldPump.turnOn();
-    }
-
-      count = 0;
-      tar_count++;
-  }
 
   if(count == h_count)
   {
-    //cout << get_time_string()<< " Turn off left pumps" << endl;
     ht->hotPump.turnOff();
     ht->coldPump.turnOff();
   }
 
   if(count == c_count)
   {
-    //cout << get_time_string()<< " Turn off right pumps" << endl;
     ct->hotPump.turnOff();
     ct->coldPump.turnOff();
   }
 
  count++;
-
  return mode;
 
 }
