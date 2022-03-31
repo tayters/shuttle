@@ -29,7 +29,7 @@ using namespace cv;
 using namespace std;
 
 enum Designation {HOT, COLD, NONE};
-enum Side {LEFT, RIGHT};
+enum Side {LEFT, RIGHT, NO_SIDE};
 
 
 class Thermocouple
@@ -64,11 +64,12 @@ class Tank
 public:
   Thermocouple tC;
   Pump hotPump, coldPump;
-  Designation designation = NONE;
+  Designation des = NONE;
   Side side;
+  double target = 20;
 
   //Constructor
-  Tank(int addr, int h, int c);
+  Tank(int addr, int h, int c, Side s);
   
 
   //Destructor

@@ -97,9 +97,10 @@ void Pump::turnOff()
 
 
   //Constructor
-Tank::Tank(int addr, int h, int c)
+Tank::Tank(int addr, int h, int c, Side s)
   : tC(addr), hotPump(h), coldPump(c)
   {
+      side = s;
   }
 
   //Destructor
