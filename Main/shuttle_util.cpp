@@ -53,7 +53,14 @@ void Thermocouple::update()
 
     deg_string = (char*)buf;
     deg_string.erase(0,1);
-    deg = stod(deg_string);
+
+    try{
+        deg = stod(deg_string);
+    }
+    catch(...)
+    {
+        cout<<"Invalid string"<<endl;
+    }
 }
 
 //Constructor
@@ -72,7 +79,7 @@ void Pump::turnOn()
 {
     if(!active)
     {
-        //digitalWrite(outpin, HIGH);
+        digitalWrite(outpin, HIGH);
         active = true;
     }
 }

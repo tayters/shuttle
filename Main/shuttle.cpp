@@ -60,7 +60,12 @@ using namespace std;
 #define HOT_R 3
 #define NONE 4
 
-enum Mode {Heat, Cool, Top, Bottom};
+enum Mode {Start, Heat, Cool};
+string mode_str[] = {"Start", "Heat", "Cool"};
+
+string side_str[] = {"LEFT", "RIGHT"};
+
+//enum Side {LEFT, RIGHT, NONE};
 bool read_complete = true;
 double duty = 0.1;
 
@@ -118,36 +123,105 @@ int median(vector<int> v)
 
 
 //Heating/cooling control 
-void update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh, MiniPID *pidc)
+Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh, MiniPID *pidc, bool run)
 { 
   static double dutyc, dutyh;
-  static double targeth = 15, targetc = 15, target_diff = 2;
+  static double targeth = 20, targetc = 20, target_diff = 2;
   static int count, control_count = 20, h_count, c_count, tar_count;
+  static Mode mode = Start;
+  static Side fish_pos = LEFT;
 
-  //Update control settings every control_count*2.8 seconds
+  //Update control settings every control_count*2.8 seconds 
   if(count >= control_count)
   {
-    cout <<get_time_string()<<"  Time up"<<endl;  
+    //Get time
+    cout <<get_time_string();  
+    
+    //Get fish position
     int x_median = median(x_vec);
-    cout << "x_median: "<<x_median<<"  "<<x_vec.size()<<endl;
+    fish_pos = ((x_median > 565)?RIGHT:LEFT);
+    cout << " x_median: "<<x_median<<"  "<<x_vec.size();
+    cout << " Fishpos =  " << side_str[fish_pos] ;
 
-    if(tar_count >= 6)
+
+    //FSM
+    switch(mode)
     {
-      if(targetc >= 15)
-      {
-        //targetc = 0.1;
+    /******************************/ 
+    case Start:
+      if(run)
+      {        
+        if(fish_pos == ht->side)
+          mode = Heat;
+        else if(fish_pos == ct->side)
+          mode = Cool;
       }
+      else
+      {
+        targetc = 20;
+        targeth = 20;
+      }
+      break;
+
+    /******************************/   
+    case Heat:
+      //Every 6min
+      if(tar_count >= 6)
+      {
+        if(targeth <= 25)
+        {
+         targeth += 0.1;
+        }
+      targetc = ht->tC.deg - target_diff;
+      tar_count = 0;
+      }
+      
+      if(run)
+      {
+        if(fish_pos == ct->side)
+          mode = Cool;
+      }
+      else
+      {
+        mode = Start;
+      }
+      break;
+    /******************************/  
+
+    case Cool:
+      //Every 6min
+      if(tar_count >= 6)
+      {
+        if(targetc >= 15)
+        {
+         targetc -= 0.1;
+        }
 
       targeth = ct->tC.deg + target_diff;
       tar_count = 0;
+      }
+
+      if(run)
+      {
+        if(fish_pos == ht->side)
+          mode = Heat;
+      }
+      else
+      {
+        mode = Start;
+      }
+      break;
+    /******************************/   
     }
-    
-    cout<< "Hot target: " << targeth << endl;
-    cout<< "Cold target: " << targetc << endl;
+
+    cout << " Mode: "<<mode_str[mode];
+
+    cout<< " Hot target: " << targeth;
+    cout<< " Cold target: " << targetc;
 
     //Update hot chamber duty cycle   
     dutyh = pidh->getOutput(ht->tC.deg, targeth);
-    cout << "Pid hot output: " << dutyh <<endl;
+    cout << " Pid hot output: " << dutyh ;
     //cout << "Hot on count: " << h_count << endl;
 
     if(dutyh > 0.1)
@@ -163,7 +237,7 @@ void update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
 
     //Update right chamber duty cycle    
     dutyc = pidc->getOutput(ct->tC.deg, targetc);
-    cout << "Pid cold output: " << dutyc <<endl;
+    cout << " Pid cold output: " << dutyc <<endl;
     //cout << "Left on count: " << h_count << endl;
     
     if(dutyc > 0.1)
@@ -197,6 +271,8 @@ void update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
 
  count++;
 
+ return mode;
+
 }
 
 
@@ -213,17 +289,23 @@ int main(int argc, char** argv)
   double time_elapsed, control_time_elapsed, min_area = 150;
   int key = 0, big_cont_index = 0;
   string hstring;
-  bool found = false;
+  bool found = false, run = false;
+  Mode mode = Start;
   
   //Setup Tanks pumps and thermocouples
   wiringPiSetup();
   Tank leftTank(DEVICE_ADD_1, HOT_L, COLD_L);
   Tank rightTank(DEVICE_ADD_0, HOT_R, COLD_R);
-  Tank coldTank(DEVICE_ADD_2, NONE, NONE);
-  Tank hotTank(DEVICE_ADD_3, NONE, NONE);
+  Tank chillTank(DEVICE_ADD_2, NONE, NONE);
+  Tank heatTank(DEVICE_ADD_3, NONE, NONE);
+
+  leftTank.designation = HOT;
+  leftTank.side = LEFT;
+  rightTank.designation = COLD;
+  rightTank.side = RIGHT;
 
   //start temperature reading thread
-  thread th1(read_thr, &leftTank, &rightTank, &hotTank, &coldTank);
+  thread th1(read_thr, &leftTank, &rightTank, &heatTank, &chillTank);
 
   //Get start time
   time(&start_time);
@@ -246,7 +328,7 @@ int main(int argc, char** argv)
 
   //Open logfile for writing to
   ofstream logfile;
-  hstring = "Date Time X Y RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold";
+  hstring = "Date Time X Y RTemp1 RTemp2 LTemp1 LTemp2 RHot RCold LHot LCold Mode";
   logfile.open(vidfilepath + vidfilename + "_log.txt");
   logfile << hstring << endl;
 
@@ -320,9 +402,11 @@ int main(int argc, char** argv)
     //Left or right chamber
     putText(src, ((p.x > arena.width*0.5)?"RIGHT":"LEFT"), Point(10, 45),
             FONT, 1, WHITE, 1, 1);
-    putText(src, "COLD RES: "+coldTank.tC.deg_string, Point(10, 60),
+    putText(src, "COLD RES: "+chillTank.tC.deg_string, Point(10, 60),
             FONT, 1, WHITE, 1, 1);
-    putText(src, "HOT RES: "+hotTank.tC.deg_string, Point(10, 75),
+    putText(src, "HOT RES: "+heatTank.tC.deg_string, Point(10, 75),
+            FONT, 1, WHITE, 1, 1);
+    putText(src, "MODE: "+mode_str[mode], Point(10, 90),
             FONT, 1, WHITE, 1, 1);
 
     //Draw arenas
@@ -360,7 +444,7 @@ int main(int argc, char** argv)
       time(&now_time);
       time_elapsed = difftime(now_time, start_time);
 
-      update_control(x_vec, &leftTank, &rightTank, &pidh, &pidc);
+      mode = update_control(x_vec, &leftTank, &rightTank, &pidh, &pidc, run);
       
       //New files
       if(time_elapsed > VIDEO_LENGTH)
@@ -377,11 +461,11 @@ int main(int argc, char** argv)
       }
 
       logfile << get_time_string()+" "+to_string(p.x)+" "+ to_string(p.y);
-      logfile <<" "<< rightTank.tC.deg_string<<" "<<hotTank.tC.deg_string
-              <<" "<< leftTank.tC.deg_string <<" "<<coldTank.tC.deg_string
+      logfile <<" "<< rightTank.tC.deg_string<<" "<<heatTank.tC.deg_string
+              <<" "<< leftTank.tC.deg_string <<" "<<chillTank.tC.deg_string
               <<" "<<rightTank.hotPump.active<<" "<<rightTank.coldPump.active
               <<" "<< leftTank.hotPump.active<<" "<<leftTank.coldPump.active
-              << endl;
+              <<" "<<mode_str[mode] << endl;
 
       read_complete = false;
     }
@@ -428,9 +512,14 @@ int main(int argc, char** argv)
         }
         break;
       
-      case 'm':
-        min_area++;
-        cout<<"Min area: "<<min_area<<endl;
+      case 's':
+        run = !run;
+
+        if(run)
+          cout<<"Started!"<<endl;
+        else
+          cout<<"Stopped!"<<endl;
+
         break;
 
       case 'n':
