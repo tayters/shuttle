@@ -54,9 +54,12 @@ using namespace std;
 #define HOT_R 3
 #define NONE 4
 
+#define CONTROL_CNT 20
+
 enum Mode {Start, Heat, Cool};
 string mode_str[] = {"Start", "Heat", "Cool"};
 string side_str[] = {"LEFT", "RIGHT"};
+string des_str[] = {"HOT","COLD","NONE"};
 bool read_complete = true;
 
 //Separate thread for reading temperatures
@@ -110,18 +113,38 @@ int median(vector<int> v)
     return v[n];
 }
 
+//Updates length of on cycle for temperature control;
+int update_duty(Tank *tank, MiniPID *pid, double target)
+{
+    int count;
+    double duty = pid->getOutput(tank->tC.deg, target);
+    cout << " Pid " <<des_str[tank->designation]<<"Output:" << duty ;
+        
+    if(duty > 0.1)
+    {
+        count = abs((int)(CONTROL_CNT*duty));
+        tank->hotPump.turnOn();
+    }
+    else if(duty < -0.1)
+    {
+        count = 2*abs((int)(CONTROL_CNT*duty));
+        tank->coldPump.turnOn();
+    }
+
+    return count;
+}
 
 //Heating/cooling control 
 Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh, MiniPID *pidc, bool run)
 { 
   static double dutyc, dutyh;
   static double targeth = 20, targetc = 20, target_diff = 2;
-  static int count, control_count = 20, h_count, c_count, tar_count;
+  static int count, h_count, c_count, tar_count;
   static Mode mode = Start;
   static Side fish_pos = LEFT;
 
   //Update control settings every control_count*2.8 seconds 
-    if(count >= control_count)
+    if(count >= CONTROL_CNT)
     {
         //Get time
         cout <<get_time_string();  
@@ -129,7 +152,7 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
         //Get fish position
         int x_median = median(x_vec);
         fish_pos = ((x_median > 565)?RIGHT:LEFT);
-        cout << " x_median: "<< x_median << endl;
+        cout << " x_median: "<< x_median;
         cout << " Fishpos =  " << side_str[fish_pos];
 
         //FSM
@@ -167,7 +190,7 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
             if(run)
             {
                 if(fish_pos == ct->side)
-                mode = Cool;
+                    mode = Cool;
             }
             else
             {
@@ -192,7 +215,7 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
             if(run)
             {
                 if(fish_pos == ht->side)
-                mode = Heat;
+                    mode = Heat;
             }
             else
             {
@@ -204,52 +227,20 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
         cout << " Mode:"<< mode_str[mode];
         cout<< " Hot target:" << targeth;
         cout<< " Cold target:" << targetc;
-
-        //Update hot chamber duty cycle   
-        dutyh = pidh->getOutput(ht->tC.deg, targeth);
-        cout << " Pid hot output:" << dutyh ;
+        h_count = update_duty(ht,pidh,targeth);
+        c_count = update_duty(ct,pidc,targetc);
+        cout<<endl;
         
-        if(dutyh > 0.1)
-        {
-            h_count = abs((int)(control_count*dutyh));
-            ht->hotPump.turnOn();
-        }
-        else if(dutyh < -0.1)
-        {
-            h_count = 2*abs((int)(control_count*dutyh));
-            ht->coldPump.turnOn();
-        }
-
-        //Update right chamber duty cycle    
-        dutyc = pidc->getOutput(ct->tC.deg, targetc);
-        cout << " Pid cold output: " << dutyc <<endl;
-          
-        if(dutyc > 0.1)
-        {
-            c_count = abs((int)(control_count*dutyc));
-            ct->hotPump.turnOn();
-        }
-        else if(dutyc < -0.1)
-        {
-            c_count = 2*abs((int)(control_count*dutyc));
-            ct->coldPump.turnOn();
-        }
-
-        count = 0;
         tar_count++;
+        count = 0;
     }
 
   if(count == h_count)
-  {
-    ht->hotPump.turnOff();
-    ht->coldPump.turnOff();
-  }
-
+    ht->pumpsOff();
+  
   if(count == c_count)
-  {
-    ct->hotPump.turnOff();
-    ct->coldPump.turnOff();
-  }
+    ct->pumpsOff();
+    
 
  count++;
  return mode;
@@ -503,10 +494,6 @@ int main(int argc, char** argv)
 
         break;
 
-      case 'n':
-        min_area--;
-        cout<<"Min area: "<<min_area<<endl;
-        break;
     }
     
     //quit on ESC button

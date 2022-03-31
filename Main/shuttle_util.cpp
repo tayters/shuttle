@@ -97,17 +97,23 @@ void Pump::turnOff()
 
 
   //Constructor
-  Tank::Tank(int addr, int h, int c)
+Tank::Tank(int addr, int h, int c)
   : tC(addr), hotPump(h), coldPump(c)
   {
   }
 
   //Destructor
-  Tank::~Tank()
-  {
+Tank::~Tank()
+{
     hotPump.turnOff();
     coldPump.turnOff();
-  }
+}
+
+void Tank::pumpsOff()
+{
+    hotPump.turnOff();
+    coldPump.turnOff();
+}
 
 
 

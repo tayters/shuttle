@@ -73,8 +73,10 @@ public:
 
   //Destructor
   ~Tank();
-  
-  
+
+  //Turns all pumps off
+  void pumpsOff();
+      
 };
 
 
