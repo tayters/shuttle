@@ -273,6 +273,14 @@ int main(int argc, char** argv)
     cout << "Enter right("<<des_str[rightTank.des] << ")start temp:";
     cin >> rightTank.target;
 
+    cout << "Enter max temperature:";
+    cin >> leftTank.max;
+    rightTank.max = leftTank.max;
+
+    cout << "Enter min temperature:";
+    cin >> leftTank.min;
+    rightTank.min = leftTank.min;
+
     cout<<"Press s key to start" << endl;
 
     //start temperature reading thread

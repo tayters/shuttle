@@ -66,7 +66,7 @@ public:
   Pump hotPump, coldPump;
   Designation des = NONE;
   Side side;
-  double target =20;
+  double target = 20, max =25, min = 15;
 
   //Constructor
   Tank(int addr, int h, int c, Side s);
