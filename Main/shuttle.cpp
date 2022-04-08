@@ -175,7 +175,7 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
         /**********************************************************************/
         case Heat:
         //Every 6min
-            if(ht->target <= 25)
+            if(ht->target <= ht->max)
                 ht->target += rate;
 
             ct->target = ht->tC.deg - target_diff;
@@ -194,7 +194,7 @@ Mode update_control(const vector<int> &x_vec, Tank *ht, Tank *ct, MiniPID *pidh,
         /**********************************************************************/
         case Cool:
         //Every 6min
-            if(ct->target >= 15)
+            if(ct->target >= ct->min)
                 ct->target -= rate;
 
             ht->target = ct->tC.deg + target_diff;
