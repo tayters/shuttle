@@ -241,7 +241,7 @@ int main(int argc, char** argv)
     Rect boundrect;
     static Point p;
     time_t now_time, start_time, control_time;
-    double time_elapsed, control_time_elapsed, min_area = 250;
+    double time_elapsed, control_time_elapsed, min_area = 300;
     int key = 0, big_cont_index = 0;
     char inchar;
     string hstring;
@@ -337,8 +337,13 @@ int main(int argc, char** argv)
     //Get frame from the video and create cropped area
     cap >> src;
     src_crop = src(arena);
-    rectangle(src_crop, Rect(Point((arena.width/2)-40,190), Size(80,80)), WHITE,
+    rectangle(src_crop, Rect(Point((arena.width/2)-40,180), Size(80,180)), WHITE,
               FILLED);
+    rectangle(src_crop, Rect(Point((arena.width/2)-80,330), Size(170,50)), WHITE,
+              FILLED);
+    rectangle(src_crop, Rect(Point((arena.width/2)-80,140), Size(170,50)), WHITE,
+              FILLED);
+    
 
      //update the background model
     pBackSub->apply(src_crop, fgmask);
@@ -353,7 +358,19 @@ int main(int argc, char** argv)
 
       if(area > min_area)
       {
-        big_cont_index = i;
+        //If found previously
+        if(found)
+        {
+          double area_prev = contourArea(contours[big_cont_index]);
+          
+          if(area > area_prev)
+            big_cont_index = i;
+        }
+        else
+        {
+          big_cont_index = i;
+        }
+
         found = true;
       }
     }
